@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppSettings, Language, Zone, MusicTrack } from '../types';
-import { X, Palette, Globe, User, ChevronRight, Volume2, Image as ImageIcon, Edit3, VolumeX, Volume1, MapPin, Trash2, Music, Waves, ArrowUpRight, ArrowDownRight, MoveHorizontal, Repeat } from 'lucide-react';
+import { X, Palette, Globe, User, ChevronRight, Volume2, Image as ImageIcon, Edit3, VolumeX, Volume1, MapPin, Trash2, Music, Waves, ArrowUpRight, ArrowDownRight, MoveHorizontal, Repeat, LogOut } from 'lucide-react';
 
 interface SettingsModalProps {
   settings: AppSettings;
@@ -10,6 +10,7 @@ interface SettingsModalProps {
   zones: Zone[];
   onDeleteZone: (id: string) => void;
   onUpdateZone: (zone: Zone) => void;
+  onLogout: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -18,7 +19,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose, 
   zones, 
   onDeleteZone, 
-  onUpdateZone 
+  onUpdateZone,
+  onLogout
 }) => {
   const [activeTab, setActiveTab] = useState<'root' | 'appearance' | 'language' | 'volume' | 'profile' | 'locations'>('root');
 
@@ -66,7 +68,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       crossfadeTitle: 'Bucle Crossfade',
       crossfadeDesc: 'Bucle sin pausas (solapado)',
       durationLabel: 'Duración',
-      rangeAdjust: 'Ajustar Rango'
+      rangeAdjust: 'Ajustar Rango',
+      logout: 'Cerrar Sesión'
     },
     en: {
       settings: 'Settings',
@@ -111,7 +114,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       crossfadeTitle: 'Crossfade Loop',
       crossfadeDesc: 'Gapless loop (overlapping)',
       durationLabel: 'Duration',
-      rangeAdjust: 'Adjust Range'
+      rangeAdjust: 'Adjust Range',
+      logout: 'Sign Out'
     },
     pt: {
       settings: 'Ajustes',
@@ -133,7 +137,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       stylePixel: 'Google Pixel (Adaptativo)',
       uiColorDesc: 'Altere a cor da interface',
       langDesc: 'Selecione seu idioma preferido',
-      volumeDesc: 'Ajuste o nível de som',
+      volumeDesc: 'Ajuste o nivel de som',
       locationsDesc: 'Gerencie suas zonas de música',
       userNameLabel: 'Nome de Usuário',
       userNamePlaceholder: 'Digite seu nombre...',
@@ -149,14 +153,15 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       track: 'Faixa',
       noMusic: 'Sem música',
       radius: 'Raio',
-      fadeOutTitle: 'Desvanecimento ao sair',
+      fadeOutTitle: 'Desvanecimento al sair',
       fadeOutDesc: 'Baixar volume suavemente',
       fadeInTitle: 'Entrada ao ingressar',
       fadeInDesc: 'Aumentar volume suavemente',
       crossfadeTitle: 'Loop Crossfade',
       crossfadeDesc: 'Loop sem pausas (sobreposto)',
       durationLabel: 'Duração',
-      rangeAdjust: 'Ajustar Alcance'
+      rangeAdjust: 'Ajustar Alcance',
+      logout: 'Sair'
     }
   }[settings.language];
 
@@ -277,6 +282,16 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <SamsungCard icon={Palette} title={t.appearance} description={t.uiColorDesc} onClick={() => setActiveTab('appearance')} />
               <SamsungCard icon={Globe} title={t.language} description={t.langDesc} onClick={() => setActiveTab('language')} />
               <SamsungCard icon={Volume2} title={t.volumeTitle} description={t.volumeDesc} onClick={() => setActiveTab('volume')} />
+              
+              <button 
+                onClick={onLogout}
+                className={`w-full flex items-center gap-4 p-4 ${settings.uiTheme === 'light' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'} transition-all rounded-2xl mt-4 font-black uppercase tracking-widest text-[10px]`}
+              >
+                <div className={`w-10 h-10 ${settings.uiTheme === 'light' ? 'bg-red-100' : 'bg-red-500/20'} rounded-full flex items-center justify-center`}>
+                  <LogOut size={20} />
+                </div>
+                {t.logout}
+              </button>
             </div>
           )}
 

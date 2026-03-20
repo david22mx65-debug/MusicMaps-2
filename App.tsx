@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Coordinates, Zone, AppState, PlayerState, AppSettings } from './types';
 import { DEFAULT_CENTER, getAppIcon } from './constants';
 import MapWrapper from './components/MapWrapper';
@@ -7,10 +7,16 @@ import ZoneModal from './components/ZoneModal';
 import SettingsModal from './components/SettingsModal';
 import AudioEngine from './components/AudioEngine';
 import MusicPlayer from './components/MusicPlayer';
-import { Navigation, AlertTriangle, FlaskConical, Move, Settings, Play, GripHorizontal, Moon, Sun } from 'lucide-react';
+import { Navigation, AlertTriangle, FlaskConical, Move, Settings, Play, GripHorizontal, Moon, Sun, LogIn } from 'lucide-react';
 import { motion } from 'motion/react';
+import { auth, db, googleProvider, handleFirestoreError, OperationType, FirebaseUser } from './firebase';
+import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, setDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
+import { audioStorage } from './src/services/audioStorage';
 
 const App: React.FC = () => {
+  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [isAuthReady, setIsAuthReady] = useState(false);
   const [userLocation, setUserLocation] = useState<Coordinates>(DEFAULT_CENTER);
   const [zones, setZones] = useState<Zone[]>([]);
   const [appState, setAppState] = useState<AppState>(AppState.MAP_VIEW);
@@ -41,9 +47,137 @@ const App: React.FC = () => {
   const [playerState, setPlayerState] = useState<PlayerState>({ isPlaying: false });
   const [isManualPaused, setIsManualPaused] = useState(false);
 
+  // Auth Listener
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+      setIsAuthReady(true);
+      if (firebaseUser) {
+        setSettings(prev => ({
+          ...prev,
+          userName: firebaseUser.displayName || 'Usuario MusicMaps',
+          userImage: firebaseUser.photoURL || undefined
+        }));
+      }
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const blobUrlsRef = useRef<Map<string, string>>(new Map());
+
+  // Firestore Sync: Settings & Zones
+  useEffect(() => {
+    if (!user || !isAuthReady) return;
+
+    // Sync Settings
+    const settingsRef = doc(db, 'users', user.uid);
+    const unsubSettings = onSnapshot(settingsRef, (snapshot) => {
+      if (snapshot.exists()) {
+        const data = snapshot.data() as Partial<AppSettings>;
+        setSettings(prev => ({ ...prev, ...data }));
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, `users/${user.uid}`));
+
+    // Sync Zones
+    const zonesRef = collection(db, 'users', user.uid, 'zones');
+    const unsubZones = onSnapshot(zonesRef, async (snapshot) => {
+      const zonesData: Zone[] = [];
+      const hydrationPromises: Promise<void>[] = [];
+      const newBlobUrls = new Map<string, string>();
+
+      snapshot.forEach((doc) => {
+        const zone = doc.data() as Zone;
+        zonesData.push(zone);
+
+        if (zone.music) {
+          hydrationPromises.push((async () => {
+            try {
+              // Check if we already have a valid blob URL for this zone
+              const existingUrl = blobUrlsRef.current.get(zone.id);
+              if (existingUrl) {
+                zone.music!.url = existingUrl;
+                newBlobUrls.set(zone.id, existingUrl);
+                return;
+              }
+
+              const audioData = await audioStorage.getAudio(zone.id);
+              if (audioData) {
+                const newUrl = URL.createObjectURL(audioData.file);
+                zone.music!.url = newUrl;
+                zone.music!.file = audioData.file as File;
+                newBlobUrls.set(zone.id, newUrl);
+              }
+            } catch (err) {
+              console.error(`Error hydrating zone ${zone.id}:`, err);
+            }
+          })());
+        }
+      });
+
+      await Promise.all(hydrationPromises);
+
+      // Revoke URLs that are no longer in use
+      blobUrlsRef.current.forEach((url, id) => {
+        if (!newBlobUrls.has(id)) {
+          URL.revokeObjectURL(url);
+        }
+      });
+      blobUrlsRef.current = newBlobUrls;
+
+      setZones(zonesData);
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `users/${user.uid}/zones`));
+
+    return () => {
+      unsubSettings();
+      unsubZones();
+      // Cleanup all URLs on unmount
+      blobUrlsRef.current.forEach(url => URL.revokeObjectURL(url));
+      blobUrlsRef.current.clear();
+    };
+  }, [user, isAuthReady]);
+
   useEffect(() => {
     document.documentElement.style.setProperty('--primary-color', settings.primaryColor);
   }, [settings.primaryColor]);
+
+  // Persist Settings to Firestore
+  const updateSettings = useCallback(async (newSettings: AppSettings | ((prev: AppSettings) => AppSettings)) => {
+    const nextSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
+    setSettings(nextSettings);
+    
+    if (user) {
+      try {
+        const { userName, userImage, uiTheme, mapTheme, language, volume, uiStyle, primaryColor } = nextSettings;
+        const dataToSave: any = {
+          userName, uiTheme, mapTheme, language, volume, uiStyle, primaryColor
+        };
+        // Firestore doesn't accept undefined. Only add if it has a value.
+        if (userImage !== undefined) dataToSave.userImage = userImage;
+        
+        await setDoc(doc(db, 'users', user.uid), dataToSave, { merge: true });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}`);
+      }
+    }
+  }, [user, settings]);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err) {
+      console.error("Login Error:", err);
+      setError("Error al iniciar sesión con Google.");
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      setZones([]); // Clear local zones on logout
+    } catch (err) {
+      console.error("Logout Error:", err);
+    }
+  };
 
   // Desbloqueo de Audio para Android
   const unlockAudio = () => {
@@ -98,18 +232,107 @@ const App: React.FC = () => {
     }
   };
 
-  const handleSaveZone = (newZone: Zone) => {
-    setZones((prev) => [...prev, newZone]);
+  const handleSaveZone = async (newZone: Zone) => {
+    if (user) {
+      try {
+        // Persist audio file to IndexedDB
+        if (newZone.music?.file) {
+          await audioStorage.saveAudio(
+            newZone.id, 
+            newZone.music.file, 
+            newZone.music.name, 
+            newZone.music.file.type
+          );
+        }
+
+        // We can't store the File object in Firestore easily without Storage.
+        // For now, we store the metadata.
+        const zoneData: any = { ...newZone };
+        
+        // Remove undefined fields from music object
+        if (zoneData.music) {
+            const { file, ...musicData } = zoneData.music;
+            const cleanMusic: any = {};
+            Object.keys(musicData).forEach(key => {
+                if ((musicData as any)[key] !== undefined) {
+                    cleanMusic[key] = (musicData as any)[key];
+                }
+            });
+            zoneData.music = cleanMusic;
+        }
+
+        // Remove other top-level undefined fields
+        Object.keys(zoneData).forEach(key => {
+            if (zoneData[key] === undefined) {
+                delete zoneData[key];
+            }
+        });
+
+        await setDoc(doc(db, 'users', user.uid, 'zones', newZone.id), zoneData);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/zones/${newZone.id}`);
+      }
+    } else {
+      setZones((prev) => [...prev, newZone]);
+    }
     setAppState(AppState.MAP_VIEW);
     setPendingZoneCoords(null);
   };
 
-  const handleDeleteZone = (id: string) => {
-    setZones((prev) => prev.filter(z => z.id !== id));
+  const handleDeleteZone = async (id: string) => {
+    if (user) {
+      try {
+        await deleteDoc(doc(db, 'users', user.uid, 'zones', id));
+        await audioStorage.deleteAudio(id);
+      } catch (err) {
+        handleFirestoreError(err, OperationType.DELETE, `users/${user.uid}/zones/${id}`);
+      }
+    } else {
+      setZones((prev) => prev.filter(z => z.id !== id));
+    }
   };
 
-  const handleUpdateZone = (updatedZone: Zone) => {
-    setZones((prev) => prev.map(z => z.id === updatedZone.id ? updatedZone : z));
+  const handleUpdateZone = async (updatedZone: Zone) => {
+    if (user) {
+      try {
+        // Persist audio file to IndexedDB if it has changed
+        if (updatedZone.music?.file) {
+          await audioStorage.saveAudio(
+            updatedZone.id, 
+            updatedZone.music.file, 
+            updatedZone.music.name, 
+            updatedZone.music.file.type
+          );
+        }
+
+        const zoneData: any = { ...updatedZone };
+        
+        // Remove undefined fields from music object
+        if (zoneData.music) {
+            const { file, ...musicData } = zoneData.music;
+            const cleanMusic: any = {};
+            Object.keys(musicData).forEach(key => {
+                if ((musicData as any)[key] !== undefined) {
+                    cleanMusic[key] = (musicData as any)[key];
+                }
+            });
+            zoneData.music = cleanMusic;
+        }
+
+        // Remove other top-level undefined fields
+        Object.keys(zoneData).forEach(key => {
+            if (zoneData[key] === undefined) {
+                delete zoneData[key];
+            }
+        });
+
+        await setDoc(doc(db, 'users', user.uid, 'zones', updatedZone.id), zoneData, { merge: true });
+      } catch (err) {
+        handleFirestoreError(err, OperationType.WRITE, `users/${user.uid}/zones/${updatedZone.id}`);
+      }
+    } else {
+      setZones((prev) => prev.map(z => z.id === updatedZone.id ? updatedZone : z));
+    }
   };
 
   const handleCancelZone = () => {
@@ -136,14 +359,41 @@ const App: React.FC = () => {
   }, []);
 
   const handleVolumeChange = useCallback((newVolume: number) => {
-    setSettings(prev => ({ ...prev, volume: newVolume }));
-  }, []);
+    updateSettings(prev => ({ ...prev, volume: newVolume }));
+  }, [updateSettings]);
 
   const translations = {
-    es: { zones: 'zonas activas', test: 'MODO PRUEBA', gpsOn: 'GPS Activo', gpsOff: 'GPS Inactivo', exploring: 'Explorando', tap: 'Toca el mapa para agregar', explore: 'Modo exploración libre', recenter: 'Recentrar', testBtn: 'Probar', testOut: 'Salir', testPick: 'Selecciona una ubicación', start: 'Activar Audio' },
-    en: { zones: 'active zones', test: 'TEST MODE', gpsOn: 'GPS Active', gpsOff: 'GPS Inactive', exploring: 'Exploring', tap: 'Tap map to add', explore: 'Free exploration mode', recenter: 'Recenter', testBtn: 'Test', testOut: 'Exit', testPick: 'Select a location', start: 'Unlock Audio' },
-    pt: { zones: 'zonas ativas', test: 'MODO TESTE', gpsOn: 'GPS Activo', gpsOff: 'GPS Inativo', exploring: 'Explorando', tap: 'Toque no mapa para adicionar', explore: 'Modo exploração libre', recenter: 'Recentrar', testBtn: 'Testar', testOut: 'Sair', testPick: 'Selecione um local', start: 'Ativar Áudio' }
+    es: { zones: 'zonas activas', test: 'MODO PRUEBA', gpsOn: 'GPS Activo', gpsOff: 'GPS Inactivo', exploring: 'Explorando', tap: 'Toca el mapa para agregar', explore: 'Modo exploración libre', recenter: 'Recentrar', testBtn: 'Probar', testOut: 'Salir', testPick: 'Selecciona una ubicación', start: 'Activar Audio', login: 'Iniciar Sesión', logout: 'Cerrar Sesión', welcome: 'Bienvenido' },
+    en: { zones: 'active zones', test: 'TEST MODE', gpsOn: 'GPS Active', gpsOff: 'GPS Inactive', exploring: 'Exploring', tap: 'Tap map to add', explore: 'Free exploration mode', recenter: 'Recenter', testBtn: 'Test', testOut: 'Exit', testPick: 'Select a location', start: 'Unlock Audio', login: 'Sign In', logout: 'Sign Out', welcome: 'Welcome' },
+    pt: { zones: 'zonas ativas', test: 'MODO TESTE', gpsOn: 'GPS Activo', gpsOff: 'GPS Inativo', exploring: 'Explorando', tap: 'Toque no mapa para adicionar', explore: 'Modo exploração libre', recenter: 'Recentrar', testBtn: 'Testar', testOut: 'Sair', testPick: 'Selecione um local', start: 'Ativar Áudio', login: 'Entrar', logout: 'Sair', welcome: 'Bem-vindo' }
   }[settings.language];
+
+  if (!isAuthReady) {
+    return (
+      <div className="h-screen w-screen flex items-center justify-center bg-[#121212]">
+        <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-[#121212] p-8 text-center">
+        <div className="w-24 h-24 bg-primary rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(29,185,84,0.3)]">
+          <img src={getAppIcon('#1DB954')} alt="Icon" className="w-12 h-12 object-contain" />
+        </div>
+        <h1 className="text-3xl font-black text-white mb-4 tracking-tight">MusicMaps</h1>
+        <p className="text-[#B3B3B3] mb-12 max-w-xs">Guarda tus zonas musicales favoritas y sincronízalas en todos tus dispositivos.</p>
+        <button 
+          onClick={handleLogin}
+          className="w-full max-w-xs py-4 bg-white text-black font-black rounded-full flex items-center justify-center gap-3 hover:scale-105 transition-transform shadow-xl"
+        >
+          <LogIn size={20} />
+          {translations.login} con Google
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className={`h-screen w-screen flex flex-col relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] transition-colors duration-500 ${settings.uiTheme === 'light' ? 'bg-[#f5f5f5] text-black' : 'bg-[#121212] text-white'} ${settings.uiStyle === 'pixel' ? 'ui-style-pixel' : 'ui-style-classic'}`}>
@@ -189,12 +439,14 @@ const App: React.FC = () => {
             </div>
         </div>
 
-        <button 
-          onClick={() => setAppState(AppState.SETTINGS)}
-          className={`${settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white'} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto hover:opacity-80 active:scale-90 transition-all`}
-        >
-          <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
-        </button>
+        <div className="flex gap-2 pointer-events-auto">
+          <button 
+            onClick={() => setAppState(AppState.SETTINGS)}
+            className={`${settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white'} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all`}
+          >
+            <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+        </div>
       </header>
 
       {/* Visual Music Player */}
@@ -318,11 +570,12 @@ const App: React.FC = () => {
       {appState === AppState.SETTINGS && (
         <SettingsModal 
           settings={settings}
-          onUpdate={setSettings}
+          onUpdate={updateSettings}
           onClose={() => setAppState(AppState.MAP_VIEW)}
           zones={zones}
           onDeleteZone={handleDeleteZone}
           onUpdateZone={handleUpdateZone}
+          onLogout={handleLogout}
         />
       )}
 

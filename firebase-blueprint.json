@@ -1,0 +1,56 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Settings",
+      "description": "User preferences and settings",
+      "type": "object",
+      "properties": {
+        "userName": { "type": "string" },
+        "userImage": { "type": "string" },
+        "uiTheme": { "type": "string", "enum": ["dark", "light"] },
+        "mapTheme": { "type": "string", "enum": ["dark", "light"] },
+        "language": { "type": "string", "enum": ["es", "en", "pt"] },
+        "volume": { "type": "number" },
+        "uiStyle": { "type": "string", "enum": ["classic", "pixel"] },
+        "primaryColor": { "type": "string" }
+      },
+      "required": ["userName", "uiTheme", "mapTheme", "language", "volume", "uiStyle", "primaryColor"]
+    },
+    "Zone": {
+      "title": "Music Zone",
+      "description": "A geographic zone with associated music",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "center": {
+          "type": "object",
+          "properties": {
+            "lat": { "type": "number" },
+            "lng": { "type": "number" }
+          }
+        },
+        "radius": { "type": "number" },
+        "music": {
+          "type": "object",
+          "properties": {
+            "name": { "type": "string" },
+            "url": { "type": "string" },
+            "coverUrl": { "type": "string" }
+          }
+        }
+      },
+      "required": ["id", "name", "center", "radius"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User settings and profile"
+    },
+    "/users/{userId}/zones/{zoneId}": {
+      "schema": "Zone",
+      "description": "User's saved music zones"
+    }
+  }
+}

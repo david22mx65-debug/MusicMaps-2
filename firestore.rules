@@ -1,0 +1,79 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: /users/{userId}
+    // Document ID: userId (string)
+    // Fields:
+    //   - userName: string (required)
+    //   - userImage: string (optional)
+    //   - uiTheme: string (required, 'dark' | 'light')
+    //   - mapTheme: string (required, 'dark' | 'light')
+    //   - language: string (required, 'es' | 'en' | 'pt')
+    //   - volume: number (required)
+    //   - uiStyle: string (required, 'classic' | 'pixel')
+    //   - primaryColor: string (required)
+    //
+    // Collection: /users/{userId}/zones/{zoneId}
+    // Document ID: zoneId (string)
+    // Fields:
+    //   - id: string (required)
+    //   - name: string (required)
+    //   - center: map (required, {lat: number, lng: number})
+    //   - radius: number (required)
+    //   - music: map (optional, {name: string, url: string, coverUrl: string})
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['userName', 'uiTheme', 'mapTheme', 'language', 'volume', 'uiStyle', 'primaryColor']) &&
+             data.userName is string && data.userName.size() > 0 && data.userName.size() < 100 &&
+             data.uiTheme in ['dark', 'light'] &&
+             data.mapTheme in ['dark', 'light'] &&
+             data.language in ['es', 'en', 'pt'] &&
+             data.volume is number && data.volume >= 0 && data.volume <= 1 &&
+             data.uiStyle in ['classic', 'pixel'] &&
+             data.primaryColor is string && data.primaryColor.size() < 20;
+    }
+
+    function isValidZone(data) {
+      return data.keys().hasAll(['id', 'name', 'center', 'radius']) &&
+             data.id is string && data.id.size() > 0 &&
+             data.name is string && data.name.size() > 0 && data.name.size() < 100 &&
+             data.center is map && data.center.lat is number && data.center.lng is number &&
+             data.radius is number && data.radius > 0 && data.radius <= 1000;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+      
+      match /zones/{zoneId} {
+        allow read: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidZone(request.resource.data);
+        allow update: if isOwner(userId) && isValidZone(request.resource.data);
+        allow delete: if isOwner(userId);
+      }
+    }
+  }
+}

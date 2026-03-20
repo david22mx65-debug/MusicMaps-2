@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { PlayerState, AppSettings } from '../types';
-import { Volume2, Pause, Play, VolumeX, Volume1, Music, SlidersHorizontal } from 'lucide-react';
+import { Volume2, Pause, Play, VolumeX, Volume1, Music, SlidersHorizontal, GripHorizontal } from 'lucide-react';
+import { motion } from 'motion/react';
 
 interface MusicPlayerProps {
   playerState: PlayerState;
@@ -23,9 +24,21 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
   if (!playerState.trackName) return null;
 
   return (
-    <div className="fixed top-[calc(85px+env(safe-area-inset-top))] left-4 right-4 z-[450] animate-in slide-in-from-top-4 fade-in duration-300 flex justify-center">
-      <div className={`${settings.uiStyle === 'pixel' ? (settings.uiTheme === 'light' ? 'bg-[#fdf8f5]/95 text-black' : 'bg-[#1a1c1e]/95 text-white') : (settings.uiTheme === 'light' ? 'bg-white/95 text-black' : 'bg-[#181818]/95 text-white')} backdrop-blur-xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/10'} p-3 sm:p-4 rounded-[24px] sm:rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.6)] flex items-center gap-3 sm:gap-4 relative w-full max-w-md`}>
+    <motion.div 
+      drag
+      dragMomentum={false}
+      dragElastic={0.1}
+      initial={{ y: 0, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      className="fixed top-[calc(85px+env(safe-area-inset-top))] left-4 right-4 z-[450] flex justify-center pointer-events-none"
+    >
+      <div className={`${settings.uiStyle === 'pixel' ? (settings.uiTheme === 'light' ? 'bg-[#fdf8f5]/95 text-black' : 'bg-[#1a1c1e]/95 text-white') : (settings.uiTheme === 'light' ? 'bg-white/95 text-black' : 'bg-[#181818]/95 text-white')} backdrop-blur-xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/10'} p-3 sm:p-4 rounded-[24px] sm:rounded-3xl shadow-[0_20px_40px_rgba(0,0,0,0.6)] flex items-center gap-3 sm:gap-4 relative w-full max-w-md pointer-events-auto cursor-grab active:cursor-grabbing`}>
         
+        {/* Drag Handle Indicator */}
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 opacity-20 hover:opacity-100 transition-opacity">
+          <GripHorizontal size={20} className={settings.uiTheme === 'light' ? 'text-black' : 'text-white'} />
+        </div>
+
         {/* Indicador de Volumen Actual (Solo visual) */}
         {!isPaused && (
           <div className="absolute -top-1 left-1/2 -translate-x-1/2 flex gap-1 items-end h-2.5 sm:h-3">
@@ -110,7 +123,7 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </motion.div>
   );
 };
 
