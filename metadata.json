@@ -1,0 +1,7 @@
+{
+  "name": "Copy of Copy of MusicMaps",
+  "description": "A location-based music player that triggers specific MP3 tracks when you enter or leave defined zones.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

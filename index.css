@@ -1,0 +1,38 @@
+@import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap');
+
+:root {
+  --primary-color: #1DB954;
+}
+
+.ui-style-pixel {
+  font-family: 'Outfit', sans-serif;
+}
+
+.ui-style-pixel .rounded-2xl { border-radius: 28px !important; }
+.ui-style-pixel .rounded-3xl { border-radius: 36px !important; }
+.ui-style-pixel .rounded-full { border-radius: 9999px !important; }
+
+/* Material You style buttons */
+.ui-style-pixel button {
+  transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.2s ease;
+}
+
+.ui-style-pixel button:active {
+  transform: scale(0.95);
+}
+
+.text-primary { color: var(--primary-color); }
+.bg-primary { background-color: var(--primary-color); }
+.border-primary { border-color: var(--primary-color); }
+
+/* Leaflet Overrides */
+.leaflet-container {
+  background: #121212 !important;
+}
+
+/* Custom Div Icon for Zone Labels */
+.custom-div-icon {
+  background: none;
+  border: none;
+}
