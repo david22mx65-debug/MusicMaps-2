@@ -58,4 +58,5 @@ export interface AppSettings {
   fadeInDuration: number; // in seconds
   enableCrossfade: boolean;
   crossfadeDuration: number; // in seconds
+  offlineMode: boolean;
 }

@@ -76,7 +76,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       keepScreenOnTitle: 'Mantener pantalla encendida',
       keepScreenOnDesc: 'Evita que el dispositivo se bloquee',
       backgroundModeTitle: 'Modo Segundo Plano',
-      backgroundModeDesc: 'Permite rastreo mientras usas otras apps'
+      backgroundModeDesc: 'Permite rastreo mientras usas otras apps',
+      offlineModeTitle: 'Modo Offline',
+      offlineModeDesc: 'Usa solo datos locales y ahorra batería'
     },
     en: {
       settings: 'Settings',
@@ -129,7 +131,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       keepScreenOnTitle: 'Keep Screen On',
       keepScreenOnDesc: 'Prevents device from locking',
       backgroundModeTitle: 'Background Mode',
-      backgroundModeDesc: 'Allows tracking while using other apps'
+      backgroundModeDesc: 'Allows tracking while using other apps',
+      offlineModeTitle: 'Offline Mode',
+      offlineModeDesc: 'Use local data only and save battery'
     },
     pt: {
       settings: 'Ajustes',
@@ -182,7 +186,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       keepScreenOnTitle: 'Manter tela ligada',
       keepScreenOnDesc: 'Evita que o dispositivo bloqueie',
       backgroundModeTitle: 'Modo Segundo Plano',
-      backgroundModeDesc: 'Permite rastreamento ao usar outros apps'
+      backgroundModeDesc: 'Permite rastreamento ao usar outros apps',
+      offlineModeTitle: 'Modo Offline',
+      offlineModeDesc: 'Use apenas dados locais e economize bateria'
     }
   }[settings.language];
 
@@ -692,6 +698,27 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       className={`w-12 h-6 rounded-full transition-all relative ${settings.enableBackgroundMode ? 'bg-primary' : (settings.uiTheme === 'light' ? 'bg-black/10' : 'bg-[#181818]')}`}
                     >
                       <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.enableBackgroundMode ? 'right-1' : 'left-1'}`} />
+                    </button>
+                  </div>
+               </div>
+
+               {/* Offline Mode Card */}
+               <div className={`${settings.uiTheme === 'light' ? 'bg-white' : 'bg-[#282828]'} p-5 rounded-3xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} space-y-4`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                        <Globe size={20} />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-black ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.offlineModeTitle}</h4>
+                        <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.offlineModeDesc}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => onUpdate({ ...settings, offlineMode: !settings.offlineMode })}
+                      className={`w-12 h-6 rounded-full transition-all relative ${settings.offlineMode ? 'bg-primary' : (settings.uiTheme === 'light' ? 'bg-black/10' : 'bg-[#181818]')}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.offlineMode ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
                </div>

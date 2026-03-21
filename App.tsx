@@ -21,29 +21,42 @@ import { SplashScreen } from '@capacitor/splash-screen';
 const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [isAuthReady, setIsAuthReady] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [userLocation, setUserLocation] = useState<Coordinates>(DEFAULT_CENTER);
   const [zones, setZones] = useState<Zone[]>([]);
   const [appState, setAppState] = useState<AppState>(AppState.MAP_VIEW);
   const [pendingZoneCoords, setPendingZoneCoords] = useState<Coordinates | null>(null);
   const [isUnlocked, setIsUnlocked] = useState(false); // Para Android Audio Unlock
   
-  const [settings, setSettings] = useState<AppSettings>({
-    primaryColor: '#1DB954',
-    language: 'es',
-    userName: 'Usuario MusicMaps',
-    selectedDeviceId: 'default',
-    volume: 0.8,
-    mapTheme: 'dark',
-    uiTheme: 'dark',
-    uiStyle: 'classic',
-    keepScreenOn: false,
-    enableBackgroundMode: false,
-    enableFadeOut: true,
-    fadeOutDuration: 2,
-    enableFadeIn: true,
-    fadeInDuration: 2,
-    enableCrossfade: true,
-    crossfadeDuration: 3
+  const [settings, setSettings] = useState<AppSettings>(() => {
+    const saved = localStorage.getItem('musicmaps_settings');
+    const defaults: AppSettings = {
+      primaryColor: '#1DB954',
+      language: 'es',
+      userName: 'Usuario MusicMaps',
+      selectedDeviceId: 'default',
+      volume: 0.8,
+      mapTheme: 'dark',
+      uiTheme: 'dark',
+      uiStyle: 'classic',
+      keepScreenOn: false,
+      enableBackgroundMode: false,
+      enableFadeOut: true,
+      fadeOutDuration: 2,
+      enableFadeIn: true,
+      fadeInDuration: 2,
+      enableCrossfade: true,
+      crossfadeDuration: 3,
+      offlineMode: false
+    };
+    if (saved) {
+      try {
+        return { ...defaults, ...JSON.parse(saved) };
+      } catch (e) {
+        return defaults;
+      }
+    }
+    return defaults;
   });
 
   // Capacitor Initialization
@@ -185,7 +198,7 @@ const App: React.FC = () => {
 
   // Firestore Sync: Settings & Zones
   useEffect(() => {
-    if (!user || !isAuthReady) return;
+    if (!user || !isAuthReady || settings.offlineMode) return;
 
     // Sync Settings
     const settingsRef = doc(db, 'users', user.uid);
@@ -258,23 +271,28 @@ const App: React.FC = () => {
     document.documentElement.style.setProperty('--primary-color', settings.primaryColor);
   }, [settings.primaryColor]);
 
-  // Persist Settings to Firestore
+  // Persist Settings to Firestore & LocalStorage
   const updateSettings = useCallback(async (newSettings: AppSettings | ((prev: AppSettings) => AppSettings)) => {
     const nextSettings = typeof newSettings === 'function' ? newSettings(settings) : newSettings;
     setSettings(nextSettings);
     
-    if (user) {
+    // Always save to localStorage
+    localStorage.setItem('musicmaps_settings', JSON.stringify(nextSettings));
+    
+    if (user && !nextSettings.offlineMode) {
       try {
         const { 
           userName, userImage, uiTheme, mapTheme, language, volume, uiStyle, primaryColor, 
           keepScreenOn, enableBackgroundMode, enableFadeOut, fadeOutDuration, 
-          enableFadeIn, fadeInDuration, enableCrossfade, crossfadeDuration 
+          enableFadeIn, fadeInDuration, enableCrossfade, crossfadeDuration,
+          offlineMode
         } = nextSettings;
         
         const dataToSave: any = {
           userName, uiTheme, mapTheme, language, volume, uiStyle, primaryColor, 
           keepScreenOn, enableBackgroundMode, enableFadeOut, fadeOutDuration, 
-          enableFadeIn, fadeInDuration, enableCrossfade, crossfadeDuration
+          enableFadeIn, fadeInDuration, enableCrossfade, crossfadeDuration,
+          offlineMode
         };
         // Firestore doesn't accept undefined. Only add if it has a value.
         if (userImage !== undefined) dataToSave.userImage = userImage;
@@ -287,11 +305,15 @@ const App: React.FC = () => {
   }, [user, settings]);
 
   const handleLogin = async () => {
+    setIsLoggingIn(true);
     try {
+      // Forzamos el uso de signInWithPopup para asegurar la ventana emergente
       await signInWithPopup(auth, googleProvider);
     } catch (err) {
       console.error("Login Error:", err);
       setError("Error al iniciar sesión con Google.");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -488,9 +510,9 @@ const App: React.FC = () => {
   }, [updateSettings]);
 
   const translations = {
-    es: { zones: 'zonas activas', test: 'MODO PRUEBA', gpsOn: 'GPS Activo', gpsOff: 'GPS Inactivo', exploring: 'Explorando', tap: 'Toca el mapa para agregar', explore: 'Modo exploración libre', recenter: 'Recentrar', testBtn: 'Probar', testOut: 'Salir', testPick: 'Selecciona una ubicación', start: 'Activar Audio', login: 'Iniciar Sesión', logout: 'Cerrar Sesión', welcome: 'Bienvenido' },
-    en: { zones: 'active zones', test: 'TEST MODE', gpsOn: 'GPS Active', gpsOff: 'GPS Inactive', exploring: 'Exploring', tap: 'Tap map to add', explore: 'Free exploration mode', recenter: 'Recenter', testBtn: 'Test', testOut: 'Exit', testPick: 'Select a location', start: 'Unlock Audio', login: 'Sign In', logout: 'Sign Out', welcome: 'Welcome' },
-    pt: { zones: 'zonas ativas', test: 'MODO TESTE', gpsOn: 'GPS Activo', gpsOff: 'GPS Inativo', exploring: 'Explorando', tap: 'Toque no mapa para adicionar', explore: 'Modo exploração libre', recenter: 'Recentrar', testBtn: 'Testar', testOut: 'Sair', testPick: 'Selecione um local', start: 'Ativar Áudio', login: 'Entrar', logout: 'Sair', welcome: 'Bem-vindo' }
+    es: { offline: 'Modo Offline', zones: 'zonas activas', test: 'MODO PRUEBA', gpsOn: 'GPS Activo', gpsOff: 'GPS Inactivo', exploring: 'Explorando', tap: 'Toca el mapa para agregar', explore: 'Modo exploración libre', recenter: 'Recentrar', testBtn: 'Probar', testOut: 'Salir', testPick: 'Selecciona una ubicación', start: 'Activar Audio', login: 'Iniciar Sesión', logout: 'Cerrar Sesión', welcome: 'Bienvenido' },
+    en: { offline: 'Offline Mode', zones: 'active zones', test: 'TEST MODE', gpsOn: 'GPS Active', gpsOff: 'GPS Inactive', exploring: 'Exploring', tap: 'Tap map to add', explore: 'Free exploration mode', recenter: 'Recenter', testBtn: 'Test', testOut: 'Exit', testPick: 'Select a location', start: 'Unlock Audio', login: 'Sign In', logout: 'Sign Out', welcome: 'Welcome' },
+    pt: { offline: 'Modo Offline', zones: 'zonas ativas', test: 'MODO TESTE', gpsOn: 'GPS Activo', gpsOff: 'GPS Inativo', exploring: 'Explorando', tap: 'Toque no mapa para adicionar', explore: 'Modo exploração libre', recenter: 'Recentrar', testBtn: 'Testar', testOut: 'Sair', testPick: 'Selecione um local', start: 'Ativar Áudio', login: 'Entrar', logout: 'Sair', welcome: 'Bem-vindo' }
   }[settings.language];
 
   if (!isAuthReady) {
@@ -511,10 +533,17 @@ const App: React.FC = () => {
         <p className="text-[#B3B3B3] mb-12 max-w-xs">Guarda tus zonas musicales favoritas y sincronízalas en todos tus dispositivos.</p>
         <button 
           onClick={handleLogin}
-          className="w-full max-w-xs py-4 bg-white text-black font-black rounded-full flex items-center justify-center gap-3 hover:scale-105 transition-transform shadow-xl"
+          disabled={isLoggingIn}
+          className="w-full max-w-xs py-4 bg-white text-black font-black rounded-full flex items-center justify-center gap-3 hover:scale-105 transition-transform shadow-xl disabled:opacity-50"
         >
-          <LogIn size={20} />
-          {translations.login} con Google
+          {isLoggingIn ? (
+            <div className="w-5 h-5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+          ) : (
+            <>
+              <LogIn size={20} />
+              {translations.login} con Google
+            </>
+          )}
         </button>
       </div>
     );
@@ -563,6 +592,9 @@ const App: React.FC = () => {
             </h1>
             <div className="flex flex-col gap-0.5 mt-1">
                <div className="flex items-center gap-2">
+                  {settings.offlineMode && (
+                    <span className="text-[9px] sm:text-[10px] text-orange-500 font-bold">OFFLINE</span>
+                  )}
                   {isTestMode ? (
                     <span className="text-[7px] sm:text-[8px] font-bold text-black bg-primary px-1.5 sm:px-2 py-0.5 rounded-full uppercase tracking-wider">{translations.test}</span>
                   ) : (
