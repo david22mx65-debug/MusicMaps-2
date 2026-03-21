@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppSettings, Language, Zone, MusicTrack } from '../types';
-import { X, Palette, Globe, User, ChevronRight, Volume2, Image as ImageIcon, Edit3, VolumeX, Volume1, MapPin, Trash2, Music, Waves, ArrowUpRight, ArrowDownRight, MoveHorizontal, Repeat, LogOut, Cpu, Zap } from 'lucide-react';
+import { X, Palette, Globe, User, ChevronRight, Volume2, Image as ImageIcon, Edit3, VolumeX, Volume1, MapPin, Trash2, Music, Waves, ArrowUpRight, ArrowDownRight, MoveHorizontal, Repeat, Cpu, Zap } from 'lucide-react';
 
 interface SettingsModalProps {
   settings: AppSettings;
@@ -10,7 +10,6 @@ interface SettingsModalProps {
   zones: Zone[];
   onDeleteZone: (id: string) => void;
   onUpdateZone: (zone: Zone) => void;
-  onLogout: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -19,8 +18,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose, 
   zones, 
   onDeleteZone, 
-  onUpdateZone,
-  onLogout
+  onUpdateZone
 }) => {
   const [activeTab, setActiveTab] = useState<'root' | 'appearance' | 'language' | 'volume' | 'profile' | 'locations' | 'system'>('root');
 
@@ -311,16 +309,6 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <SamsungCard icon={Globe} title={t.language} description={t.langDesc} onClick={() => setActiveTab('language')} />
               <SamsungCard icon={Volume2} title={t.volumeTitle} description={t.volumeDesc} onClick={() => setActiveTab('volume')} />
               <SamsungCard icon={Cpu} title={t.system} description={t.systemDesc} onClick={() => setActiveTab('system')} />
-              
-              <button 
-                onClick={onLogout}
-                className={`w-full flex items-center gap-4 p-4 ${settings.uiTheme === 'light' ? 'bg-red-50 text-red-600 hover:bg-red-100' : 'bg-red-500/10 text-red-400 hover:bg-red-500/20'} transition-all rounded-2xl mt-4 font-black uppercase tracking-widest text-[10px]`}
-              >
-                <div className={`w-10 h-10 ${settings.uiTheme === 'light' ? 'bg-red-100' : 'bg-red-500/20'} rounded-full flex items-center justify-center`}>
-                  <LogOut size={20} />
-                </div>
-                {t.logout}
-              </button>
             </div>
           )}
 
