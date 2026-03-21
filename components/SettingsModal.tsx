@@ -1,7 +1,7 @@
 
 import React, { useState } from 'react';
 import { AppSettings, Language, Zone, MusicTrack } from '../types';
-import { X, Palette, Globe, User, ChevronRight, Volume2, Image as ImageIcon, Edit3, VolumeX, Volume1, MapPin, Trash2, Music, Waves, ArrowUpRight, ArrowDownRight, MoveHorizontal, Repeat, LogOut } from 'lucide-react';
+import { X, Palette, Globe, User, ChevronRight, Volume2, Image as ImageIcon, Edit3, VolumeX, Volume1, MapPin, Trash2, Music, Waves, ArrowUpRight, ArrowDownRight, MoveHorizontal, Repeat, LogOut, Cpu, Zap } from 'lucide-react';
 
 interface SettingsModalProps {
   settings: AppSettings;
@@ -22,7 +22,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onUpdateZone,
   onLogout
 }) => {
-  const [activeTab, setActiveTab] = useState<'root' | 'appearance' | 'language' | 'volume' | 'profile' | 'locations'>('root');
+  const [activeTab, setActiveTab] = useState<'root' | 'appearance' | 'language' | 'volume' | 'profile' | 'locations' | 'system'>('root');
 
   const t = {
     es: {
@@ -43,6 +43,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       uiStyle: 'Estilo de Interfaz',
       styleClassic: 'Clásico',
       stylePixel: 'Google Pixel (Adaptativo)',
+      styleLiquidGlass: 'Liquid Glass (Efecto Cristal)',
       uiColorDesc: 'Cambia el color de la interfaz',
       langDesc: 'Selecciona tu lengua preferida',
       volumeDesc: 'Ajusta el nivel de sonido',
@@ -69,7 +70,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       crossfadeDesc: 'Bucle sin pausas (solapado)',
       durationLabel: 'Duración',
       rangeAdjust: 'Ajustar Rango',
-      logout: 'Cerrar Sesión'
+      logout: 'Cerrar Sesión',
+      system: 'Sistema',
+      systemDesc: 'Ajustes de ejecución y batería',
+      keepScreenOnTitle: 'Mantener pantalla encendida',
+      keepScreenOnDesc: 'Evita que el dispositivo se bloquee',
+      backgroundModeTitle: 'Modo Segundo Plano',
+      backgroundModeDesc: 'Permite rastreo mientras usas otras apps'
     },
     en: {
       settings: 'Settings',
@@ -89,6 +96,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       uiStyle: 'UI Style',
       styleClassic: 'Classic',
       stylePixel: 'Google Pixel (Adaptive)',
+      styleLiquidGlass: 'Liquid Glass (Glass Effect)',
       uiColorDesc: 'Change UI accent color',
       langDesc: 'Select your preferred language',
       volumeDesc: 'Adjust sound levels',
@@ -115,7 +123,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       crossfadeDesc: 'Gapless loop (overlapping)',
       durationLabel: 'Duration',
       rangeAdjust: 'Adjust Range',
-      logout: 'Sign Out'
+      logout: 'Sign Out',
+      system: 'System',
+      systemDesc: 'Execution and battery settings',
+      keepScreenOnTitle: 'Keep Screen On',
+      keepScreenOnDesc: 'Prevents device from locking',
+      backgroundModeTitle: 'Background Mode',
+      backgroundModeDesc: 'Allows tracking while using other apps'
     },
     pt: {
       settings: 'Ajustes',
@@ -135,6 +149,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       uiStyle: 'Estilo da Interface',
       styleClassic: 'Clássico',
       stylePixel: 'Google Pixel (Adaptativo)',
+      styleLiquidGlass: 'Liquid Glass (Efeito Cristal)',
       uiColorDesc: 'Altere a cor da interface',
       langDesc: 'Selecione seu idioma preferido',
       volumeDesc: 'Ajuste o nivel de som',
@@ -161,7 +176,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       crossfadeDesc: 'Loop sem pausas (sobreposto)',
       durationLabel: 'Duração',
       rangeAdjust: 'Ajustar Alcance',
-      logout: 'Sair'
+      logout: 'Sair',
+      system: 'Sistema',
+      systemDesc: 'Ajustes de execução e bateria',
+      keepScreenOnTitle: 'Manter tela ligada',
+      keepScreenOnDesc: 'Evita que o dispositivo bloqueie',
+      backgroundModeTitle: 'Modo Segundo Plano',
+      backgroundModeDesc: 'Permite rastreamento ao usar outros apps'
     }
   }[settings.language];
 
@@ -210,10 +231,10 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   const SamsungCard = ({ icon: Icon, title, description, onClick }: any) => (
     <button 
       onClick={onClick}
-      className={`w-full flex items-center justify-between p-4 ${settings.uiStyle === 'pixel' ? (settings.uiTheme === 'light' ? 'bg-primary/10 hover:bg-primary/20' : 'bg-primary/5 hover:bg-primary/10') : (settings.uiTheme === 'light' ? 'bg-black/5 hover:bg-black/10' : 'bg-[#282828] hover:bg-[#333]')} active:scale-[0.98] transition-all rounded-2xl mb-2 text-left`}
+      className={`w-full flex items-center justify-between p-4 ${settings.uiStyle === 'pixel' ? (settings.uiTheme === 'light' ? 'bg-primary/10 hover:bg-primary/20' : 'bg-primary/5 hover:bg-primary/10') : settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 hover:bg-white/60 backdrop-blur-md' : 'bg-white/5 hover:bg-white/10 backdrop-blur-md') : (settings.uiTheme === 'light' ? 'bg-black/5 hover:bg-black/10' : 'bg-[#282828] hover:bg-[#333]')} active:scale-[0.98] transition-all rounded-2xl mb-2 text-left`}
     >
       <div className="flex items-center gap-4">
-        <div className={`w-10 h-10 ${settings.uiStyle === 'pixel' ? 'bg-primary/20' : (settings.uiTheme === 'light' ? 'bg-black/5' : 'bg-white/5')} rounded-full flex items-center justify-center text-primary`}>
+        <div className={`w-10 h-10 ${settings.uiStyle === 'pixel' ? 'bg-primary/20' : settings.uiStyle === 'liquid-glass' ? 'bg-white/10' : (settings.uiTheme === 'light' ? 'bg-black/5' : 'bg-white/5')} rounded-full flex items-center justify-center text-primary`}>
           <Icon size={20} />
         </div>
         <div>
@@ -244,7 +265,8 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                activeTab === 'appearance' ? t.appearance :
                activeTab === 'language' ? t.language :
                activeTab === 'profile' ? t.profile : 
-               activeTab === 'locations' ? t.locationsTitle : t.volumeTitle}
+               activeTab === 'locations' ? t.locationsTitle :
+               activeTab === 'system' ? t.system : t.volumeTitle}
             </h2>
             <button 
               onClick={activeTab === 'root' ? onClose : () => setActiveTab('root')} 
@@ -282,6 +304,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               <SamsungCard icon={Palette} title={t.appearance} description={t.uiColorDesc} onClick={() => setActiveTab('appearance')} />
               <SamsungCard icon={Globe} title={t.language} description={t.langDesc} onClick={() => setActiveTab('language')} />
               <SamsungCard icon={Volume2} title={t.volumeTitle} description={t.volumeDesc} onClick={() => setActiveTab('volume')} />
+              <SamsungCard icon={Cpu} title={t.system} description={t.systemDesc} onClick={() => setActiveTab('system')} />
               
               <button 
                 onClick={onLogout}
@@ -410,29 +433,40 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                 </div>
               </div>
 
-              <div className={`${settings.uiStyle === 'pixel' ? (settings.uiTheme === 'light' ? 'bg-primary/5' : 'bg-primary/5') : (settings.uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]')} p-6 rounded-3xl`}>
+              <div className={`${settings.uiStyle === 'pixel' ? (settings.uiTheme === 'light' ? 'bg-primary/5' : 'bg-primary/5') : settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/30 backdrop-blur-md' : 'bg-white/5 backdrop-blur-md') : (settings.uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]')} p-6 rounded-3xl`}>
                 <label className={`text-xs font-black uppercase ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} block mb-4`}>{t.uiStyle}</label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-3 gap-2">
                   <button 
                     onClick={() => onUpdate({ ...settings, uiStyle: 'classic' })}
-                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${settings.uiStyle === 'pixel' ? (settings.uiStyle === 'classic' ? 'border-primary bg-primary/20' : 'border-transparent bg-primary/5') : (settings.uiStyle === 'classic' ? 'border-primary bg-primary/10' : (settings.uiTheme === 'light' ? 'border-black/5 bg-black/5' : 'border-white/5 bg-[#181818]'))}`}
+                    className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${settings.uiStyle === 'classic' ? 'border-primary bg-primary/10' : (settings.uiTheme === 'light' ? 'border-black/5 bg-black/5' : 'border-white/5 bg-[#181818]')}`}
                   >
-                    <div className="w-full h-12 flex items-center justify-center gap-1">
+                    <div className="w-full h-10 flex items-center justify-center gap-1">
                       <div className="w-4 h-4 rounded-full bg-primary" />
                       <div className="w-8 h-2 rounded-full bg-gray-500" />
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'}`}>{t.styleClassic}</span>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'}`}>{t.styleClassic}</span>
                   </button>
                   <button 
                     onClick={() => onUpdate({ ...settings, uiStyle: 'pixel' })}
-                    className={`p-4 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${settings.uiStyle === 'pixel' && settings.uiStyle === 'pixel' ? 'border-primary bg-primary/20' : (settings.uiStyle === 'pixel' ? 'border-transparent bg-primary/5' : (settings.uiTheme === 'light' ? 'border-black/5 bg-black/5' : 'border-white/5 bg-[#181818]'))}`}
+                    className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${settings.uiStyle === 'pixel' ? 'border-primary bg-primary/20' : (settings.uiTheme === 'light' ? 'border-black/5 bg-black/5' : 'border-white/5 bg-[#181818]')}`}
                   >
-                    <div className="w-full h-12 flex items-center justify-center gap-1">
+                    <div className="w-full h-10 flex items-center justify-center gap-1">
                       <div className="w-6 h-6 rounded-2xl bg-primary/20 flex items-center justify-center">
                         <div className="w-3 h-3 rounded-full bg-primary" />
                       </div>
                     </div>
-                    <span className={`text-[10px] font-black uppercase tracking-widest ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'}`}>{t.stylePixel}</span>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'}`}>{t.stylePixel}</span>
+                  </button>
+                  <button 
+                    onClick={() => onUpdate({ ...settings, uiStyle: 'liquid-glass' })}
+                    className={`p-3 rounded-2xl border-2 transition-all flex flex-col items-center gap-2 ${settings.uiStyle === 'liquid-glass' ? 'border-primary bg-primary/20' : (settings.uiTheme === 'light' ? 'border-black/5 bg-black/5' : 'border-white/5 bg-[#181818]')}`}
+                  >
+                    <div className="w-full h-10 flex items-center justify-center">
+                      <div className="w-8 h-8 rounded-full bg-primary/30 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                        <div className="w-4 h-4 rounded-full bg-primary shadow-[0_0_10px_rgba(29,185,84,0.5)]" />
+                      </div>
+                    </div>
+                    <span className={`text-[8px] font-black uppercase tracking-widest ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'}`}>{t.styleLiquidGlass}</span>
                   </button>
                 </div>
               </div>
@@ -614,6 +648,52 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                <div className="flex gap-4">
                   <button onClick={() => onUpdate({ ...settings, volume: 0 })} className={`flex-1 py-4 ${settings.uiTheme === 'light' ? 'bg-black/5 text-black/40' : 'bg-[#282828] text-[#B3B3B3]'} rounded-2xl font-black text-xs uppercase`}>{t.mute}</button>
                   <button onClick={() => onUpdate({ ...settings, volume: 1 })} className={`flex-1 py-4 ${settings.uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]'} text-primary rounded-2xl font-black text-xs uppercase`}>MAX</button>
+               </div>
+            </div>
+          )}
+
+          {activeTab === 'system' && (
+            <div className="space-y-4">
+               {/* Wake Lock Card */}
+               <div className={`${settings.uiTheme === 'light' ? 'bg-white' : 'bg-[#282828]'} p-5 rounded-3xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} space-y-4`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                        <Zap size={20} />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-black ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.keepScreenOnTitle}</h4>
+                        <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.keepScreenOnDesc}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => onUpdate({ ...settings, keepScreenOn: !settings.keepScreenOn })}
+                      className={`w-12 h-6 rounded-full transition-all relative ${settings.keepScreenOn ? 'bg-primary' : (settings.uiTheme === 'light' ? 'bg-black/10' : 'bg-[#181818]')}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.keepScreenOn ? 'right-1' : 'left-1'}`} />
+                    </button>
+                  </div>
+               </div>
+
+               {/* Background Mode Card */}
+               <div className={`${settings.uiTheme === 'light' ? 'bg-white' : 'bg-[#282828]'} p-5 rounded-3xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} space-y-4`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                        <Cpu size={20} />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-black ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.backgroundModeTitle}</h4>
+                        <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.backgroundModeDesc}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => onUpdate({ ...settings, enableBackgroundMode: !settings.enableBackgroundMode })}
+                      className={`w-12 h-6 rounded-full transition-all relative ${settings.enableBackgroundMode ? 'bg-primary' : (settings.uiTheme === 'light' ? 'bg-black/10' : 'bg-[#181818]')}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.enableBackgroundMode ? 'right-1' : 'left-1'}`} />
+                    </button>
+                  </div>
                </div>
             </div>
           )}

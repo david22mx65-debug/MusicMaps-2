@@ -7,12 +7,16 @@ import ZoneModal from './components/ZoneModal';
 import SettingsModal from './components/SettingsModal';
 import AudioEngine from './components/AudioEngine';
 import MusicPlayer from './components/MusicPlayer';
-import { Navigation, AlertTriangle, FlaskConical, Move, Settings, Play, GripHorizontal, Moon, Sun, LogIn } from 'lucide-react';
+import { Navigation, AlertTriangle, FlaskConical, Move, Settings, Play, GripHorizontal, Moon, Sun, LogIn, Maximize, Minimize } from 'lucide-react';
 import { motion } from 'motion/react';
 import { auth, db, googleProvider, handleFirestoreError, OperationType, FirebaseUser } from './firebase';
 import { signInWithPopup, onAuthStateChanged, signOut } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, collection, deleteDoc } from 'firebase/firestore';
 import { audioStorage } from './src/services/audioStorage';
+
+import { App as CapApp } from '@capacitor/app';
+import { StatusBar, Style } from '@capacitor/status-bar';
+import { SplashScreen } from '@capacitor/splash-screen';
 
 const App: React.FC = () => {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -32,6 +36,8 @@ const App: React.FC = () => {
     mapTheme: 'dark',
     uiTheme: 'dark',
     uiStyle: 'classic',
+    keepScreenOn: false,
+    enableBackgroundMode: false,
     enableFadeOut: true,
     fadeOutDuration: 2,
     enableFadeIn: true,
@@ -40,12 +46,124 @@ const App: React.FC = () => {
     crossfadeDuration: 3
   });
 
+  // Capacitor Initialization
+  useEffect(() => {
+    const initCapacitor = async () => {
+      try {
+        await SplashScreen.hide();
+        await StatusBar.setStyle({ style: settings.uiTheme === 'dark' ? Style.Dark : Style.Light });
+      } catch (e) {
+        console.log('Not running in Capacitor');
+      }
+    };
+    initCapacitor();
+
+    const backListener = CapApp.addListener('backButton', ({ canGoBack }) => {
+      if (!canGoBack) {
+        if (appState !== AppState.MAP_VIEW) {
+          setAppState(AppState.MAP_VIEW);
+        } else {
+          CapApp.exitApp();
+        }
+      } else {
+        window.history.back();
+      }
+    });
+
+    return () => {
+      backListener.then(l => l.remove());
+    };
+  }, [appState, settings.uiTheme]);
+
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  const toggleFullscreen = () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(e => {
+        console.error(`Error attempting to enable full-screen mode: ${e.message} (${e.name})`);
+      });
+    } else {
+      if (document.exitFullscreen) {
+        document.exitFullscreen();
+      }
+    }
+  };
+
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
   const [isTracking, setIsTracking] = useState(false);
   const [isTestMode, setIsTestMode] = useState(false);
   const [isAutoCenterEnabled, setIsAutoCenterEnabled] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [playerState, setPlayerState] = useState<PlayerState>({ isPlaying: false });
   const [isManualPaused, setIsManualPaused] = useState(false);
+  const wakeLockRef = useRef<any>(null);
+
+  // Wake Lock Logic
+  const requestWakeLock = useCallback(async () => {
+    if ('wakeLock' in navigator && settings.keepScreenOn) {
+      try {
+        wakeLockRef.current = await (navigator as any).wakeLock.request('screen');
+        console.log('Wake Lock active');
+      } catch (err) {
+        console.error(`${err.name}, ${err.message}`);
+      }
+    }
+  }, [settings.keepScreenOn]);
+
+  const releaseWakeLock = useCallback(async () => {
+    if (wakeLockRef.current) {
+      await wakeLockRef.current.release();
+      wakeLockRef.current = null;
+      console.log('Wake Lock released');
+    }
+  }, []);
+
+  useEffect(() => {
+    if (settings.keepScreenOn) {
+      requestWakeLock();
+    } else {
+      releaseWakeLock();
+    }
+    return () => { releaseWakeLock(); };
+  }, [settings.keepScreenOn, requestWakeLock, releaseWakeLock]);
+
+  // Re-request wake lock when visibility changes (tab becomes visible again)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible' && settings.keepScreenOn) {
+        requestWakeLock();
+      }
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [settings.keepScreenOn, requestWakeLock]);
+
+  // Background Mode Notification Logic
+  useEffect(() => {
+    if (settings.enableBackgroundMode && isTracking) {
+      try {
+        if ('Notification' in window && Notification.permission === 'granted') {
+          new Notification('MusicMaps Tracking', {
+            body: 'El seguimiento en segundo plano está activo.',
+            icon: '/icons/icon-192x192.png',
+            tag: 'tracking-active',
+            silent: true
+          });
+        } else if ('Notification' in window && Notification.permission !== 'denied') {
+          Notification.requestPermission().catch(err => console.error("Notification permission error:", err));
+        }
+      } catch (err) {
+        console.error("Notification error:", err);
+      }
+    }
+  }, [settings.enableBackgroundMode, isTracking]);
 
   // Auth Listener
   useEffect(() => {
@@ -147,9 +265,16 @@ const App: React.FC = () => {
     
     if (user) {
       try {
-        const { userName, userImage, uiTheme, mapTheme, language, volume, uiStyle, primaryColor } = nextSettings;
+        const { 
+          userName, userImage, uiTheme, mapTheme, language, volume, uiStyle, primaryColor, 
+          keepScreenOn, enableBackgroundMode, enableFadeOut, fadeOutDuration, 
+          enableFadeIn, fadeInDuration, enableCrossfade, crossfadeDuration 
+        } = nextSettings;
+        
         const dataToSave: any = {
-          userName, uiTheme, mapTheme, language, volume, uiStyle, primaryColor
+          userName, uiTheme, mapTheme, language, volume, uiStyle, primaryColor, 
+          keepScreenOn, enableBackgroundMode, enableFadeOut, fadeOutDuration, 
+          enableFadeIn, fadeInDuration, enableCrossfade, crossfadeDuration
         };
         // Firestore doesn't accept undefined. Only add if it has a value.
         if (userImage !== undefined) dataToSave.userImage = userImage;
@@ -396,13 +521,21 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className={`h-screen w-screen flex flex-col relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] transition-colors duration-500 ${settings.uiTheme === 'light' ? 'bg-[#f5f5f5] text-black' : 'bg-[#121212] text-white'} ${settings.uiStyle === 'pixel' ? 'ui-style-pixel' : 'ui-style-classic'}`}>
+    <div className={`h-screen w-screen flex flex-col relative overflow-hidden pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] pr-[env(safe-area-inset-right)] pl-[env(safe-area-inset-left)] transition-colors duration-500 ${settings.uiTheme === 'light' ? 'bg-[#f5f5f5] text-black' : 'bg-[#121212] text-white'} ${settings.uiStyle === 'pixel' ? 'ui-style-pixel' : settings.uiStyle === 'liquid-glass' ? 'ui-style-liquid-glass' : 'ui-style-classic'}`}>
       <style>{`
         :root { --primary-color: #1DB954; }
         .text-primary { color: var(--primary-color); }
         .bg-primary { background-color: var(--primary-color); }
         .border-primary { border-color: var(--primary-color); }
       `}</style>
+      
+      {/* Liquid Glass Blobs */}
+      {settings.uiStyle === 'liquid-glass' && (
+        <>
+          <div className="liquid-blob top-[-100px] left-[-100px]" />
+          <div className="liquid-blob bottom-[-100px] right-[-100px]" style={{ animationDelay: '-10s', background: 'rgba(255,255,255,0.1)' }} />
+        </>
+      )}
       
       {/* Android Audio Unlock Overlay */}
       {!isUnlocked && (
@@ -423,7 +556,7 @@ const App: React.FC = () => {
       
       {/* Header */}
       <header className="absolute top-[env(safe-area-inset-top)] left-0 right-0 z-[500] p-4 flex justify-between items-start pointer-events-none">
-        <div className={`${settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white'} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto max-w-[70%] sm:max-w-none`}>
+        <div className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto max-w-[70%] sm:max-w-none`}>
             <h1 className="text-base sm:text-lg font-black text-primary flex items-center gap-2 tracking-tight">
                 <img src={getAppIcon(settings.primaryColor)} alt="Icon" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" /> 
                 MusicMaps
@@ -441,8 +574,15 @@ const App: React.FC = () => {
 
         <div className="flex gap-2 pointer-events-auto">
           <button 
+            onClick={toggleFullscreen}
+            className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all`}
+            title={isFullscreen ? "Salir de pantalla completa" : "Pantalla completa"}
+          >
+            {isFullscreen ? <Minimize className="w-5 h-5 sm:w-6 sm:h-6" /> : <Maximize className="w-5 h-5 sm:w-6 sm:h-6" />}
+          </button>
+          <button 
             onClick={() => setAppState(AppState.SETTINGS)}
-            className={`${settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white'} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all`}
+            className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all`}
           >
             <Settings className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
@@ -473,7 +613,7 @@ const App: React.FC = () => {
       <div className="absolute top-[calc(100px+env(safe-area-inset-top))] right-4 z-[500] flex flex-col gap-2">
         <button 
           onClick={() => setSettings(prev => ({ ...prev, mapTheme: prev.mapTheme === 'dark' ? 'light' : 'dark' }))}
-          className={`${settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white'} backdrop-blur-xl p-2.5 sm:p-3 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto hover:opacity-80 active:scale-90 transition-all flex flex-col items-center gap-1`}
+          className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-2.5 sm:p-3 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto hover:opacity-80 active:scale-90 transition-all flex flex-col items-center gap-1`}
           title="Cambiar tema del mapa"
         >
           <div className={`w-3.5 h-3.5 sm:w-4 sm:h-4 rounded-full border border-white/20 ${settings.mapTheme === 'light' ? 'bg-white' : 'bg-[#242424]'}`} />
@@ -484,7 +624,7 @@ const App: React.FC = () => {
 
         <button 
           onClick={() => setSettings(prev => ({ ...prev, uiTheme: prev.uiTheme === 'dark' ? 'light' : 'dark' }))}
-          className={`${settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white'} backdrop-blur-xl p-2.5 sm:p-3 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto hover:opacity-80 active:scale-90 transition-all flex flex-col items-center gap-1`}
+          className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-2.5 sm:p-3 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto hover:opacity-80 active:scale-90 transition-all flex flex-col items-center gap-1`}
           title="Cambiar tema de la interfaz"
         >
           {settings.uiTheme === 'dark' ? <Moon size={14} className="sm:w-4 sm:h-4" /> : <Sun size={14} className="sm:w-4 sm:h-4" />}
@@ -496,7 +636,7 @@ const App: React.FC = () => {
         
         {!isAutoCenterEnabled && (
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-[400] pointer-events-none animate-in fade-in zoom-in duration-300">
-                <div className="bg-[#181818]/90 text-white px-4 py-2 rounded-full text-xs font-bold border border-white/10 backdrop-blur-md flex items-center gap-2 shadow-2xl">
+                <div className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl text-black' : 'bg-white/5 backdrop-blur-2xl text-white') : 'bg-[#181818]/90 text-white'} px-4 py-2 rounded-full text-xs font-bold border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/10'} backdrop-blur-md flex items-center gap-2 shadow-2xl`}>
                     <Move size={12} className="text-primary" /> {translations.exploring}
                 </div>
             </div>
@@ -517,7 +657,7 @@ const App: React.FC = () => {
              </div>
          )}
          
-         <div className={`${settings.uiTheme === 'light' ? 'bg-white text-black' : 'bg-[#181818] text-white'} border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} p-3 sm:p-4 rounded-[28px] sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto transition-all`}>
+         <div className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white text-black' : 'bg-[#181818] text-white')} border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} p-3 sm:p-4 rounded-[28px] sm:rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] pointer-events-auto transition-all`}>
             <div className="flex justify-center mb-1 opacity-20 cursor-grab active:cursor-grabbing">
                 <GripHorizontal size={20} />
             </div>

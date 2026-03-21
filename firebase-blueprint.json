@@ -11,8 +11,16 @@
         "mapTheme": { "type": "string", "enum": ["dark", "light"] },
         "language": { "type": "string", "enum": ["es", "en", "pt"] },
         "volume": { "type": "number" },
-        "uiStyle": { "type": "string", "enum": ["classic", "pixel"] },
-        "primaryColor": { "type": "string" }
+        "uiStyle": { "type": "string", "enum": ["classic", "pixel", "liquid-glass"] },
+        "primaryColor": { "type": "string" },
+        "keepScreenOn": { "type": "boolean" },
+        "enableBackgroundMode": { "type": "boolean" },
+        "enableFadeOut": { "type": "boolean" },
+        "fadeOutDuration": { "type": "number" },
+        "enableFadeIn": { "type": "boolean" },
+        "fadeInDuration": { "type": "number" },
+        "enableCrossfade": { "type": "boolean" },
+        "crossfadeDuration": { "type": "number" }
       },
       "required": ["userName", "uiTheme", "mapTheme", "language", "volume", "uiStyle", "primaryColor"]
     },
@@ -23,6 +31,7 @@
       "properties": {
         "id": { "type": "string" },
         "name": { "type": "string" },
+        "description": { "type": "string" },
         "center": {
           "type": "object",
           "properties": {

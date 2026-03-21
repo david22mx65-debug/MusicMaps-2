@@ -270,6 +270,32 @@ const AudioEngine: React.FC<AudioEngineProps> = ({
 
   }, [userLocation, zones, isTracking, activeZoneId, isPaused, isUnlocked, enableFadeOut, fadeOutDuration, enableFadeIn, fadeInDuration, volume, enableCrossfade, crossfadeDuration]);
 
+  // MediaSession API Support
+  useEffect(() => {
+    if ('mediaSession' in navigator && currentMeta.current.trackName) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: currentMeta.current.trackName,
+        artist: currentMeta.current.zoneName || 'MusicMaps',
+        album: 'MusicMaps Zones',
+        artwork: [
+          { src: currentMeta.current.coverUrl || '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+          { src: currentMeta.current.coverUrl || '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+        ]
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => {
+        if (isPaused) onResetPause();
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        if (!isPaused) onResetPause(); // Toggle pause
+      });
+    }
+
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPaused ? 'paused' : 'playing';
+    }
+  }, [currentMeta.current.trackName, currentMeta.current.zoneName, currentMeta.current.coverUrl, isPaused, onResetPause]);
+
   return <div className="hidden" aria-hidden="true" />;
 };
 

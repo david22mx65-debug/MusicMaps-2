@@ -49,7 +49,9 @@ export interface AppSettings {
   volume: number; // 0 to 1
   mapTheme: 'dark' | 'light';
   uiTheme: 'dark' | 'light';
-  uiStyle: 'classic' | 'pixel';
+  uiStyle: 'classic' | 'pixel' | 'liquid-glass';
+  keepScreenOn: boolean;
+  enableBackgroundMode: boolean;
   enableFadeOut: boolean;
   fadeOutDuration: number; // in seconds
   enableFadeIn: boolean;
