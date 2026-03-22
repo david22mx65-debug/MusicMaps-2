@@ -37,6 +37,11 @@ Este proyecto utiliza **Capacitor** para convertir la aplicación web en una apl
    - Selecciona **APK** y sigue las instrucciones para crear o usar un almacén de claves (keystore).
 
 ## Notas importantes
-- **Permisos:** El archivo `AndroidManifest.xml` ya incluye los permisos necesarios para el GPS (`ACCESS_FINE_LOCATION`).
+- **Permisos:** El archivo `AndroidManifest.xml` ya incluye los permisos necesarios:
+  - **GPS:** `ACCESS_FINE_LOCATION`, `ACCESS_COARSE_LOCATION` y `ACCESS_BACKGROUND_LOCATION` (para detectar zonas con la pantalla apagada).
+  - **Audio:** `READ_MEDIA_AUDIO` y `READ_EXTERNAL_STORAGE` para seleccionar tus archivos de música.
+  - **Internet:** Necesario para cargar los mapas de Google y las sugerencias de la IA.
+  - **Servicios en primer plano:** Permite que la música siga sonando aunque salgas de la aplicación.
+- **Configuración en el móvil:** Para que el GPS funcione en segundo plano, el usuario debe seleccionar **"Permitir siempre"** en los ajustes de ubicación de la app en Android.
 - **Iconos y Splash Screen:** Puedes cambiarlos en la carpeta `android/app/src/main/res`.
 - **Depuración:** Puedes conectar tu teléfono Android por USB y darle a **"Run"** (el icono de play verde) en Android Studio para probar la app directamente.
