@@ -1,38 +1,42 @@
-# MusicMaps Android Deployment Guide
+# Guía para generar el APK de MusicMaps con Android Studio
 
-This project has been prepared for Android Studio using Capacitor.
+Este proyecto utiliza **Capacitor** para convertir la aplicación web en una aplicación nativa de Android. Sigue estos pasos para generar tu APK:
 
-## Prerequisites
+## Requisitos previos
+1. **Android Studio** instalado y configurado.
+2. **Node.js** y **npm** instalados.
 
-1.  **Android Studio** installed on your machine.
-2.  **Android SDK** configured.
+## Pasos para preparar el proyecto
 
-## How to build the APK
+1. **Instalar dependencias:**
+   Asegúrate de que todas las dependencias estén instaladas:
+   ```bash
+   npm install
+   ```
 
-1.  **Build the web project:**
-    ```bash
-    npm run build
-    ```
+2. **Construir la aplicación web y sincronizar con Android:**
+   Ejecuta el siguiente comando que compilará el proyecto web y actualizará la carpeta `android`:
+   ```bash
+   npm run build:android
+   ```
 
-2.  **Sync with Capacitor:**
-    ```bash
-    npm run cap:sync
-    ```
+## Pasos en Android Studio
 
-3.  **Open in Android Studio:**
-    ```bash
-    npm run cap:open:android
-    ```
+1. **Abrir el proyecto:**
+   Abre Android Studio y selecciona **"Open an existing project"**. Navega hasta la carpeta `android` de este repositorio y ábrela.
 
-4.  **In Android Studio:**
-    -   Wait for Gradle to finish syncing.
-    -   Select your device or emulator.
-    -   Click the **Run** button (green play icon) or go to **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+2. **Esperar a que Gradle sincronice:**
+   Android Studio descargará las dependencias necesarias y sincronizará el proyecto. Esto puede tardar unos minutos la primera vez.
 
-## Permissions
+3. **Generar el APK:**
+   - Ve al menú superior: **Build > Build Bundle(s) / APK(s) > Build APK(s)**.
+   - Una vez finalizado, aparecerá una notificación en la esquina inferior derecha. Haz clic en **"locate"** para encontrar el archivo `app-debug.apk`.
 
-The app requires the following permissions, which are already configured in the `AndroidManifest.xml` (via Capacitor):
--   `ACCESS_COARSE_LOCATION`
--   `ACCESS_FINE_LOCATION`
+4. **Generar APK firmado (para producción):**
+   - Ve a **Build > Generate Signed Bundle / APK...**
+   - Selecciona **APK** y sigue las instrucciones para crear o usar un almacén de claves (keystore).
 
-If you need background tracking, you may need to add `ACCESS_BACKGROUND_LOCATION` manually in `android/app/src/main/AndroidManifest.xml`.
+## Notas importantes
+- **Permisos:** El archivo `AndroidManifest.xml` ya incluye los permisos necesarios para el GPS (`ACCESS_FINE_LOCATION`).
+- **Iconos y Splash Screen:** Puedes cambiarlos en la carpeta `android/app/src/main/res`.
+- **Depuración:** Puedes conectar tu teléfono Android por USB y darle a **"Run"** (el icono de play verde) en Android Studio para probar la app directamente.

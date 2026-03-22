@@ -9,6 +9,7 @@
     "start": "node server.ts",
     "preview": "vite preview",
     "lint": "tsc --noEmit",
+    "build:android": "npm run build && npx cap sync android",
     "cap:sync": "npx cap sync",
     "cap:open:android": "npx cap open android"
   },

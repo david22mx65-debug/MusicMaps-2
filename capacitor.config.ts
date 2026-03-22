@@ -4,8 +4,18 @@ const config: CapacitorConfig = {
   appId: 'com.musicmaps.app',
   appName: 'MusicMaps',
   webDir: 'dist',
+  bundledWebRuntime: false,
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    cleartext: true
+  },
+  plugins: {
+    SplashScreen: {
+      launchShowDuration: 2000,
+      backgroundColor: "#121212",
+      showSpinner: false,
+      androidScaleType: "CENTER_CROP"
+    }
   }
 };
 
