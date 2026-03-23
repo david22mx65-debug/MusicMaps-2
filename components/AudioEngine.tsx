@@ -130,7 +130,8 @@ const AudioEngine = forwardRef<AudioEngineRef, AudioEngineProps>(({
           id: t.id,
           name: t.name,
           file: t.file as File,
-          url: URL.createObjectURL(t.file)
+          url: URL.createObjectURL(t.file),
+          coverUrl: t.coverUrl
         }));
         setMotionPlaylist(tracks);
         
@@ -519,6 +520,7 @@ const AudioEngine = forwardRef<AudioEngineRef, AudioEngineProps>(({
           const newMeta = {
             trackName: track.name,
             zoneName: 'En Movimiento',
+            coverUrl: track.coverUrl,
             isMotionMusic: true
           };
           setCurrentMeta(newMeta);
@@ -546,6 +548,7 @@ const AudioEngine = forwardRef<AudioEngineRef, AudioEngineProps>(({
           const newMeta = {
             trackName: track.name,
             zoneName: 'En Movimiento',
+            coverUrl: track.coverUrl,
             isMotionMusic: true
           };
           setCurrentMeta(newMeta);
@@ -565,6 +568,7 @@ const AudioEngine = forwardRef<AudioEngineRef, AudioEngineProps>(({
              const newMeta = {
                 trackName: track.name,
                 zoneName: 'En Movimiento',
+                coverUrl: track.coverUrl,
                 isMotionMusic: true
              };
              setCurrentMeta(newMeta);

@@ -4,6 +4,7 @@ import { Coordinates, Zone, MusicTrack, Language } from '../types';
 import { X, Music, Upload, Loader2, Sparkles, Image as ImageIcon, Circle as CircleIcon, Square as SquareIcon, RectangleHorizontal, Triangle as TriangleIcon, PenTool, Library, Plus } from 'lucide-react';
 import { generateZoneDetails } from '../services/geminiService';
 import { audioStorage, AudioFileData } from '../src/services/audioStorage';
+import { extractMetadata } from '../src/lib/metadata';
 
 const SHAPES = [
   { id: 'circle', icon: CircleIcon, label: { es: 'Círculo', en: 'Circle', pt: 'Círculo' } },
@@ -85,9 +86,19 @@ const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, langu
     }
   }[language];
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
-      setMusicFile(e.target.files[0]);
+      const file = e.target.files[0];
+      setMusicFile(file);
+      
+      // Extract metadata
+      const metadata = await extractMetadata(file);
+      if (metadata.coverUrl) {
+        setCoverImage(metadata.coverUrl);
+      }
+      if (metadata.title && !name) {
+        setName(metadata.title);
+      }
     }
   };
 
@@ -103,6 +114,9 @@ const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, langu
 
   const selectFromLibrary = (track: AudioFileData) => {
     setMusicFile(track.file as File);
+    if (track.coverUrl) {
+      setCoverImage(track.coverUrl);
+    }
     setShowLibrary(false);
   };
 
@@ -138,7 +152,7 @@ const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, langu
     };
 
     // Save to library if it's a new file
-    audioStorage.saveToLibrary(zoneId, musicFile, musicFile.name, musicFile.type);
+    audioStorage.saveToLibrary(zoneId, musicFile, musicFile.name, musicFile.type, coverImage || undefined);
 
     // Calculate specific geometry based on shape
     if (shape === 'rectangle') {

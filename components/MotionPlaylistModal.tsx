@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { MusicTrack, Language, AppSettings } from '../types';
 import { X, Music, Upload, Trash2, GripVertical, AlertCircle, Plus, FolderOpen, Library, Shuffle, Repeat, Repeat1 } from 'lucide-react';
 import { audioStorage, AudioFileData } from '../src/services/audioStorage';
+import { extractMetadata } from '../src/lib/metadata';
 
 interface MotionPlaylistModalProps {
   onClose: () => void;
@@ -95,7 +96,8 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
           id: t.id,
           name: t.name,
           file: t.file as File,
-          url: URL.createObjectURL(t.file)
+          url: URL.createObjectURL(t.file),
+          coverUrl: t.coverUrl
         }));
         setPlaylist(tracks);
         setLibrary(libraryTracks);
@@ -131,13 +133,18 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
       if (playlist.length + newTracks.length >= 100) break;
       
       const id = `motion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      await audioStorage.saveMotionAudio(id, file, file.name, file.type);
+      
+      // Extract metadata
+      const metadata = await extractMetadata(file);
+      
+      await audioStorage.saveMotionAudio(id, file, metadata.title || file.name, file.type, metadata.coverUrl);
       
       newTracks.push({
         id,
-        name: file.name,
+        name: metadata.title || file.name,
         file,
-        url: URL.createObjectURL(file)
+        url: URL.createObjectURL(file),
+        coverUrl: metadata.coverUrl
       });
     }
 
@@ -155,12 +162,13 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
     }
     if (playlist.some(t => t.id === track.id)) return;
 
-    await audioStorage.saveMotionAudio(track.id, track.file, track.name, track.type);
+    await audioStorage.saveMotionAudio(track.id, track.file, track.name, track.type, track.coverUrl);
     const newTrack: MusicTrack = {
       id: track.id,
       name: track.name,
       file: track.file as File,
-      url: URL.createObjectURL(track.file)
+      url: URL.createObjectURL(track.file),
+      coverUrl: track.coverUrl
     };
     setPlaylist(prev => [...prev, newTrack]);
     onUpdateSettings(prev => ({ ...prev, motionPlaylistVersion: (prev.motionPlaylistVersion || 0) + 1 }));
@@ -288,8 +296,12 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
                 key={track.id}
                 className={`flex items-center gap-3 p-3 rounded-2xl ${uiTheme === 'light' ? 'bg-black/5' : 'bg-[#181818]'} border border-white/5 group`}
               >
-                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shrink-0">
-                  <Music size={18} />
+                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shrink-0 overflow-hidden">
+                  {track.coverUrl ? (
+                    <img src={track.coverUrl} className="w-full h-full object-cover" alt="Cover" />
+                  ) : (
+                    <Music size={18} />
+                  )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className={`text-xs font-bold truncate ${uiTheme === 'light' ? 'text-black' : 'text-white'}`}>

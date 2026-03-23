@@ -12,6 +12,7 @@ export interface AudioFileData {
   file: File | Blob;
   name: string;
   type: string;
+  coverUrl?: string;
 }
 
 class AudioStorageService {
@@ -34,11 +35,11 @@ class AudioStorageService {
   }
 
   // Zone Audio
-  async saveAudio(id: string, file: File | Blob, name: string, type: string): Promise<void> {
+  async saveAudio(id: string, file: File | Blob, name: string, type: string, coverUrl?: string): Promise<void> {
     const db = await this.db;
-    await db.put(STORE_NAME, { id, file, name, type });
+    await db.put(STORE_NAME, { id, file, name, type, coverUrl });
     // Also save to library for future use
-    await db.put(LIBRARY_STORE_NAME, { id, file, name, type });
+    await db.put(LIBRARY_STORE_NAME, { id, file, name, type, coverUrl });
   }
 
   async getAudio(id: string): Promise<AudioFileData | undefined> {
@@ -52,11 +53,11 @@ class AudioStorageService {
   }
 
   // Motion Audio
-  async saveMotionAudio(id: string, file: File | Blob, name: string, type: string): Promise<void> {
+  async saveMotionAudio(id: string, file: File | Blob, name: string, type: string, coverUrl?: string): Promise<void> {
     const db = await this.db;
-    await db.put(MOTION_STORE_NAME, { id, file, name, type });
+    await db.put(MOTION_STORE_NAME, { id, file, name, type, coverUrl });
     // Also save to library
-    await db.put(LIBRARY_STORE_NAME, { id, file, name, type });
+    await db.put(LIBRARY_STORE_NAME, { id, file, name, type, coverUrl });
   }
 
   async getMotionAudio(id: string): Promise<AudioFileData | undefined> {
@@ -75,9 +76,9 @@ class AudioStorageService {
   }
 
   // Library
-  async saveToLibrary(id: string, file: File | Blob, name: string, type: string): Promise<void> {
+  async saveToLibrary(id: string, file: File | Blob, name: string, type: string, coverUrl?: string): Promise<void> {
     const db = await this.db;
-    await db.put(LIBRARY_STORE_NAME, { id, file, name, type });
+    await db.put(LIBRARY_STORE_NAME, { id, file, name, type, coverUrl });
   }
 
   async getAllLibraryAudio(): Promise<AudioFileData[]> {
