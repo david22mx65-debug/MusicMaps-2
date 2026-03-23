@@ -5,9 +5,10 @@ import { DEFAULT_CENTER, getAppIcon } from './constants';
 import MapWrapper from './components/MapWrapper';
 import ZoneModal from './components/ZoneModal';
 import SettingsModal from './components/SettingsModal';
-import AudioEngine from './components/AudioEngine';
+import MotionPlaylistModal from './components/MotionPlaylistModal';
+import AudioEngine, { AudioEngineRef } from './components/AudioEngine';
 import MusicPlayer from './components/MusicPlayer';
-import { Navigation, AlertTriangle, FlaskConical, Move, Settings, Play, GripHorizontal, Moon, Sun, Maximize, Minimize } from 'lucide-react';
+import { Navigation, AlertTriangle, FlaskConical, Move, Settings, Play, GripHorizontal, Moon, Sun, Maximize, Minimize, Music, ListMusic, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'motion/react';
 import { audioStorage } from './src/services/audioStorage';
 
@@ -17,6 +18,7 @@ import { SplashScreen } from '@capacitor/splash-screen';
 
 const App: React.FC = () => {
   const [userLocation, setUserLocation] = useState<Coordinates>(DEFAULT_CENTER);
+  const audioEngineRef = useRef<AudioEngineRef>(null);
   const [zones, setZones] = useState<Zone[]>(() => {
     const saved = localStorage.getItem('musicmaps_zones');
     if (saved) {
@@ -51,7 +53,11 @@ const App: React.FC = () => {
       fadeInDuration: 2,
       enableCrossfade: true,
       crossfadeDuration: 3,
-      offlineMode: false
+      offlineMode: false,
+      enableMotionMusic: false,
+      motionPlaylistVersion: 0,
+      motionShuffle: false,
+      motionRepeat: 'all'
     };
     if (saved) {
       try {
@@ -87,8 +93,17 @@ const App: React.FC = () => {
       }
     });
 
+    const stateListener = CapApp.addListener('appStateChange', ({ isActive }) => {
+      console.log('App state changed. Is active:', isActive);
+      if (!isActive && settings.enableBackgroundMode) {
+        // App is in background, ensure audio keeps playing
+        // (MediaSession already helps with this)
+      }
+    });
+
     return () => {
       backListener.then(l => l.remove());
+      stateListener.then(l => l.remove());
     };
   }, [appState, settings.uiTheme]);
 
@@ -120,6 +135,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [playerState, setPlayerState] = useState<PlayerState>({ isPlaying: false });
   const [isManualPaused, setIsManualPaused] = useState(false);
+  const [showFloatingPlayer, setShowFloatingPlayer] = useState(true);
   const wakeLockRef = useRef<any>(null);
   const blobUrlsRef = useRef<Map<string, string>>(new Map());
 
@@ -195,6 +211,9 @@ const App: React.FC = () => {
   // Desbloqueo de Audio para Android
   const unlockAudio = () => {
     setIsUnlocked(true);
+    if (audioEngineRef.current) {
+      audioEngineRef.current.unlock();
+    }
   };
 
   useEffect(() => {
@@ -370,7 +389,7 @@ const App: React.FC = () => {
         <div className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} pointer-events-auto max-w-[70%] sm:max-w-none`}>
             <h1 className="text-base sm:text-lg font-black text-primary flex items-center gap-2 tracking-tight">
                 <img src={getAppIcon(settings.primaryColor)} alt="Icon" className="w-5 h-5 sm:w-6 sm:h-6 object-contain" /> 
-                MusicMaps
+                MusicMaps <span className="text-[8px] sm:text-[10px] font-bold bg-primary/20 text-primary px-1.5 py-0.5 rounded-md uppercase tracking-widest">Beta</span>
             </h1>
             <div className="flex flex-col gap-0.5 mt-1">
                <div className="flex items-center gap-2">
@@ -395,6 +414,44 @@ const App: React.FC = () => {
             {isFullscreen ? <Minimize className="w-5 h-5 sm:w-6 sm:h-6" /> : <Maximize className="w-5 h-5 sm:w-6 sm:h-6" />}
           </button>
           <button 
+            onClick={async () => {
+              if (!isUnlocked) unlockAudio();
+              const tracks = await audioStorage.getAllMotionAudio();
+              if (tracks.length === 0) {
+                setAppState(AppState.MOTION_PLAYLIST);
+              } else {
+                updateSettings(prev => ({ ...prev, enableMotionMusic: !prev.enableMotionMusic }));
+              }
+            }}
+            onContextMenu={(e) => {
+              e.preventDefault();
+              setShowFloatingPlayer(true);
+            }}
+            className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all relative ${settings.enableMotionMusic ? 'text-primary border-primary/30' : ''}`}
+            title="Música en Movimiento (Click: Toggle, Long Press: Mostrar Reproductor)"
+          >
+            <Music className="w-5 h-5 sm:w-6 sm:h-6" />
+            {settings.enableMotionMusic && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full animate-pulse" />
+            )}
+          </button>
+
+          <button 
+            onClick={() => setAppState(AppState.MOTION_PLAYLIST)}
+            className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all`}
+            title="Abrir Playlist de Movimiento"
+          >
+            <ListMusic className="w-5 h-5 sm:w-6 sm:h-6" />
+          </button>
+
+          <button 
+            onClick={() => setShowFloatingPlayer(!showFloatingPlayer)}
+            className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all ${showFloatingPlayer ? 'text-primary' : ''}`}
+            title={showFloatingPlayer ? "Ocultar Reproductor" : "Mostrar Reproductor"}
+          >
+            {showFloatingPlayer ? <Eye className="w-5 h-5 sm:w-6 sm:h-6" /> : <EyeOff className="w-5 h-5 sm:w-6 sm:h-6" />}
+          </button>
+          <button 
             onClick={() => setAppState(AppState.SETTINGS)}
             className={`${settings.uiStyle === 'liquid-glass' ? (settings.uiTheme === 'light' ? 'bg-white/40 backdrop-blur-2xl' : 'bg-white/5 backdrop-blur-2xl') : (settings.uiTheme === 'light' ? 'bg-white/90 text-black' : 'bg-[#121212]/90 text-white')} backdrop-blur-xl p-3 sm:p-4 rounded-2xl shadow-2xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} hover:opacity-80 active:scale-90 transition-all`}
           >
@@ -410,6 +467,20 @@ const App: React.FC = () => {
         isPaused={isManualPaused}
         settings={settings}
         onVolumeChange={handleVolumeChange}
+        onToggleMotionMusic={async () => {
+          if (!isUnlocked) unlockAudio();
+          const tracks = await audioStorage.getAllMotionAudio();
+          if (tracks.length === 0) {
+            setAppState(AppState.MOTION_PLAYLIST);
+          } else {
+            updateSettings(prev => ({ ...prev, enableMotionMusic: !prev.enableMotionMusic }));
+          }
+        }}
+        onNext={() => audioEngineRef.current?.nextTrack()}
+        onPrev={() => audioEngineRef.current?.prevTrack()}
+        onClose={() => setShowFloatingPlayer(false)}
+        onOpenPlaylist={() => setAppState(AppState.MOTION_PLAYLIST)}
+        showFloatingPlayer={showFloatingPlayer}
       />
 
       {/* Map Area */}
@@ -529,10 +600,53 @@ const App: React.FC = () => {
           zones={zones}
           onDeleteZone={handleDeleteZone}
           onUpdateZone={handleUpdateZone}
+          onOpenMotionPlaylist={() => setAppState(AppState.MOTION_PLAYLIST)}
+          onTestAudio={() => audioEngineRef.current?.testAudio()}
         />
       )}
 
+      {appState === AppState.MOTION_PLAYLIST && (
+        <MotionPlaylistModal 
+          onClose={() => setAppState(AppState.MAP_VIEW)}
+          language={settings.language}
+          uiTheme={settings.uiTheme}
+          uiStyle={settings.uiStyle}
+          settings={settings}
+          onUpdateSettings={updateSettings}
+        />
+      )}
+
+      {/* Audio Unlock Overlay */}
+      {!isUnlocked && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/90 backdrop-blur-md p-6 text-center">
+          <motion.div 
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="max-w-xs w-full space-y-8"
+          >
+            <div className="w-24 h-24 bg-primary/20 rounded-full flex items-center justify-center mx-auto animate-pulse">
+              <Music size={48} className="text-primary" />
+            </div>
+            <div className="space-y-4">
+              <h1 className="text-3xl font-black text-white tracking-tighter uppercase">MusicMaps</h1>
+              <p className="text-sm text-[#B3B3B3] font-bold leading-relaxed">
+                {settings.language === 'es' 
+                  ? 'Toca para activar el audio y comenzar tu experiencia musical geográfica.' 
+                  : 'Tap to enable audio and start your geographic music experience.'}
+              </p>
+            </div>
+            <button 
+              onClick={unlockAudio}
+              className="w-full py-5 bg-primary text-black font-black rounded-full uppercase tracking-widest text-sm shadow-2xl shadow-primary/40 active:scale-95 transition-all"
+            >
+              {settings.language === 'es' ? 'Comenzar' : 'Start'}
+            </button>
+          </motion.div>
+        </div>
+      )}
+
       <AudioEngine 
+        ref={audioEngineRef}
         userLocation={userLocation}
         zones={zones}
         isTracking={isTracking || isTestMode}
@@ -547,6 +661,10 @@ const App: React.FC = () => {
         fadeInDuration={settings.fadeInDuration}
         enableCrossfade={settings.enableCrossfade}
         crossfadeDuration={settings.crossfadeDuration}
+        enableMotionMusic={settings.enableMotionMusic}
+        motionPlaylistVersion={settings.motionPlaylistVersion}
+        motionShuffle={settings.motionShuffle}
+        motionRepeat={settings.motionRepeat}
       />
 
     </div>

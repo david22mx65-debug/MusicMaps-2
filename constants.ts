@@ -21,6 +21,30 @@ export const calculateDistance = (coord1: Coordinates, coord2: Coordinates): num
   return R * c;
 };
 
+// Point in Polygon (Ray Casting Algorithm)
+export const isPointInPolygon = (point: Coordinates, polygon: Coordinates[]): boolean => {
+  let inside = false;
+  for (let i = 0, j = polygon.length - 1; i < polygon.length; j = i++) {
+    const xi = polygon[i].lng, yi = polygon[i].lat;
+    const xj = polygon[j].lng, yj = polygon[j].lat;
+    const intersect = ((yi > point.lat) !== (yj > point.lat)) &&
+      (point.lng < (xj - xi) * (point.lat - yi) / (yj - yi) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+};
+
+// Point in Rectangle
+export const isPointInRect = (point: Coordinates, bounds: [Coordinates, Coordinates]): boolean => {
+  const [sw, ne] = bounds;
+  const minLat = Math.min(sw.lat, ne.lat);
+  const maxLat = Math.max(sw.lat, ne.lat);
+  const minLng = Math.min(sw.lng, ne.lng);
+  const maxLng = Math.max(sw.lng, ne.lng);
+  return point.lat >= minLat && point.lat <= maxLat &&
+         point.lng >= minLng && point.lng <= maxLng;
+};
+
 /**
  * Returns a dynamic Green Pixel Heart Icon (URI-encoded SVG)
  * The color parameter allows the icon to match the user's selected primary color.

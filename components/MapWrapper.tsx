@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { MapContainer, TileLayer, Circle, Marker, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, TileLayer, Circle, Marker, useMap, useMapEvents, Rectangle, Polygon } from 'react-leaflet';
 import L from 'leaflet';
 import { Coordinates, Zone } from '../types';
 
@@ -131,29 +131,68 @@ const MapWrapper: React.FC<MapWrapperProps> = ({
         />
 
         {/* Zones */}
-        {zones.map(zone => (
-          <React.Fragment key={zone.id}>
-            <Circle
-              center={[zone.center.lat, zone.center.lng]}
-              radius={zone.radius}
-              pathOptions={{
-                fillColor: '#1DB954',
-                fillOpacity: 0.15,
-                color: '#1DB954',
-                weight: 1,
-                dashArray: '5, 5'
-              }}
-            />
-            <Marker 
-              position={[zone.center.lat, zone.center.lng]}
-              icon={L.divIcon({
-                className: 'custom-div-icon',
-                html: `<div style="color: #1DB954; font-weight: bold; font-size: 10px; text-shadow: ${theme === 'light' ? '0 0 4px rgba(255,255,255,0.8)' : '0 0 4px rgba(0,0,0,0.8)'}; white-space: nowrap; transform: translate(-50%, -120%);">${zone.name.toUpperCase()}</div>`,
-                iconSize: [0, 0]
-              })}
-            />
-          </React.Fragment>
-        ))}
+        {zones.map(zone => {
+          const commonOptions = {
+            fillColor: '#1DB954',
+            fillOpacity: 0.15,
+            color: '#1DB954',
+            weight: 1,
+            dashArray: '5, 5'
+          };
+
+          let shapeComponent = null;
+
+          if (!zone.shape || zone.shape === 'circle') {
+            shapeComponent = (
+              <Circle
+                center={[zone.center.lat, zone.center.lng]}
+                radius={zone.radius}
+                pathOptions={commonOptions}
+              />
+            );
+          } else if (zone.shape === 'rectangle' && zone.bounds) {
+            shapeComponent = (
+              <Rectangle
+                bounds={[[zone.bounds[0].lat, zone.bounds[0].lng], [zone.bounds[1].lat, zone.bounds[1].lng]]}
+                pathOptions={commonOptions}
+              />
+            );
+          } else if (zone.shape === 'square') {
+            const latDiff = (zone.radius / 111320);
+            const lngDiff = (zone.radius / (111320 * Math.cos(zone.center.lat * Math.PI / 180)));
+            const bounds: [[number, number], [number, number]] = [
+              [zone.center.lat - latDiff, zone.center.lng - lngDiff],
+              [zone.center.lat + latDiff, zone.center.lng + lngDiff]
+            ];
+            shapeComponent = (
+              <Rectangle
+                bounds={bounds}
+                pathOptions={commonOptions}
+              />
+            );
+          } else if ((zone.shape === 'triangle' || zone.shape === 'custom') && zone.points) {
+            shapeComponent = (
+              <Polygon
+                positions={zone.points.map(p => [p.lat, p.lng])}
+                pathOptions={commonOptions}
+              />
+            );
+          }
+
+          return (
+            <React.Fragment key={zone.id}>
+              {shapeComponent}
+              <Marker 
+                position={[zone.center.lat, zone.center.lng]}
+                icon={L.divIcon({
+                  className: 'custom-div-icon',
+                  html: `<div style="color: #1DB954; font-weight: bold; font-size: 10px; text-shadow: ${theme === 'light' ? '0 0 4px rgba(255,255,255,0.8)' : '0 0 4px rgba(0,0,0,0.8)'}; white-space: nowrap; transform: translate(-50%, -120%);">${zone.name.toUpperCase()}</div>`,
+                  iconSize: [0, 0]
+                })}
+              />
+            </React.Fragment>
+          );
+        })}
       </MapContainer>
 
       {/* HUD Info */}

@@ -4,7 +4,6 @@ const config: CapacitorConfig = {
   appId: 'com.musicmaps.app',
   appName: 'MusicMaps',
   webDir: 'dist',
-  bundledWebRuntime: false,
   server: {
     androidScheme: 'https',
     cleartext: true

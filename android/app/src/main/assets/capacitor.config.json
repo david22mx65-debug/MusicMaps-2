@@ -3,6 +3,15 @@
 	"appName": "MusicMaps",
 	"webDir": "dist",
 	"server": {
-		"androidScheme": "https"
+		"androidScheme": "https",
+		"cleartext": true
+	},
+	"plugins": {
+		"SplashScreen": {
+			"launchShowDuration": 2000,
+			"backgroundColor": "#121212",
+			"showSpinner": false,
+			"androidScaleType": "CENTER_CROP"
+		}
 	}
 }

@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { PlayerState, AppSettings } from '../types';
-import { Volume2, Pause, Play, Volume1, Music, GripHorizontal } from 'lucide-react';
+import { Volume2, Pause, Play, Volume1, Music, GripHorizontal, Zap, ZapOff, SkipBack, SkipForward, X, ListMusic } from 'lucide-react';
 import { motion } from 'motion/react';
 
 interface MusicPlayerProps {
@@ -9,7 +9,12 @@ interface MusicPlayerProps {
   onTogglePause: () => void;
   isPaused: boolean;
   settings: AppSettings;
-  onVolumeChange: (volume: number) => void;
+  onToggleMotionMusic: () => void;
+  onNext?: () => void;
+  onPrev?: () => void;
+  onClose?: () => void;
+  onOpenPlaylist?: () => void;
+  showFloatingPlayer: boolean;
 }
 
 const MusicPlayer: React.FC<MusicPlayerProps> = ({ 
@@ -17,9 +22,17 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
   onTogglePause, 
   isPaused, 
   settings,
-  onVolumeChange
+  onVolumeChange,
+  onToggleMotionMusic,
+  onNext,
+  onPrev,
+  onClose,
+  onOpenPlaylist,
+  showFloatingPlayer
 }) => {
-  if (!playerState.trackName) return null;
+  if (!showFloatingPlayer || !playerState.trackName) return null;
+
+  const isMotionMusic = playerState.isMotionMusic;
 
   return (
     <motion.div 
@@ -36,6 +49,14 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 opacity-20 hover:opacity-100 transition-opacity">
           <GripHorizontal size={20} className={settings.uiTheme === 'light' ? 'text-black' : 'text-white'} />
         </div>
+
+        {/* Close Button */}
+        <button 
+          onClick={onClose}
+          className="absolute -top-2 -right-2 w-6 h-6 rounded-full bg-red-500 text-white flex items-center justify-center shadow-lg active:scale-90 transition-transform"
+        >
+          <X size={14} />
+        </button>
 
         {/* Indicador de Volumen Actual (Solo visual) */}
         {!isPaused && (
@@ -73,10 +94,15 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
             <h3 className={`font-black text-xs sm:text-sm truncate leading-tight ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'}`}>
               {playerState.trackName}
             </h3>
-            <p className={`${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} text-[9px] sm:text-[10px] font-bold uppercase tracking-widest mt-0.5 truncate flex items-center gap-1`}>
-              <span className="w-1.5 h-1.5 rounded-full bg-primary" style={{ backgroundColor: settings.primaryColor }}></span>
-              {playerState.zoneName}
-            </p>
+            <div className="flex items-center gap-2 mt-0.5">
+              <p className={`${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} text-[9px] sm:text-[10px] font-bold uppercase tracking-widest truncate flex items-center gap-1`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-primary" style={{ backgroundColor: settings.primaryColor }}></span>
+                {playerState.zoneName}
+              </p>
+              {isMotionMusic && (
+                <span className="text-[8px] px-1.5 py-0.5 bg-primary/10 text-primary rounded-full font-black uppercase tracking-tighter">Motion</span>
+              )}
+            </div>
           </div>
           
           {/* Slider de Volumen Directo */}
@@ -98,6 +124,41 @@ const MusicPlayer: React.FC<MusicPlayerProps> = ({
 
         {/* Controles Separados */}
         <div className="flex items-center gap-1.5 sm:gap-2">
+          {isMotionMusic && (
+            <>
+              <button 
+                onClick={onPrev}
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-90 ${settings.uiTheme === 'light' ? 'bg-black/5 text-black/60' : 'bg-white/5 text-white/60'}`}
+              >
+                <SkipBack size={16} fill="currentColor" />
+              </button>
+              <button 
+                onClick={onNext}
+                className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-90 ${settings.uiTheme === 'light' ? 'bg-black/5 text-black/60' : 'bg-white/5 text-white/60'}`}
+              >
+                <SkipForward size={16} fill="currentColor" />
+              </button>
+            </>
+          )}
+
+          {/* Toggle Motion Music (Manual Override) */}
+          <button 
+            onClick={onToggleMotionMusic}
+            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-90 border ${settings.enableMotionMusic ? 'bg-primary/10 border-primary text-primary' : 'bg-black/5 border-transparent text-gray-400'}`}
+            title={settings.enableMotionMusic ? "Desactivar Música de Movimiento" : "Activar Música de Movimiento"}
+          >
+            {settings.enableMotionMusic ? <Zap size={16} fill="currentColor" /> : <ZapOff size={16} />}
+          </button>
+
+          {/* Open Playlist Button */}
+          <button 
+            onClick={onOpenPlaylist}
+            className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center transition-all active:scale-90 border ${settings.uiTheme === 'light' ? 'bg-black/5 border-transparent text-black/40' : 'bg-white/5 border-transparent text-white/40'}`}
+            title="Abrir Playlist"
+          >
+            <ListMusic size={16} />
+          </button>
+
           {/* BOTÓN DE PAUSA PRINCIPAL (Sin afectar volumen) */}
           <button 
             onClick={onTogglePause}

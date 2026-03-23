@@ -10,6 +10,8 @@ interface SettingsModalProps {
   zones: Zone[];
   onDeleteZone: (id: string) => void;
   onUpdateZone: (zone: Zone) => void;
+  onOpenMotionPlaylist: () => void;
+  onTestAudio: () => void;
 }
 
 const SettingsModal: React.FC<SettingsModalProps> = ({ 
@@ -18,7 +20,9 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose, 
   zones, 
   onDeleteZone, 
-  onUpdateZone
+  onUpdateZone,
+  onOpenMotionPlaylist,
+  onTestAudio
 }) => {
   const [activeTab, setActiveTab] = useState<'root' | 'appearance' | 'language' | 'volume' | 'profile' | 'locations' | 'system'>('root');
 
@@ -74,9 +78,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       keepScreenOnTitle: 'Mantener pantalla encendida',
       keepScreenOnDesc: 'Evita que el dispositivo se bloquee',
       backgroundModeTitle: 'Modo Segundo Plano',
-      backgroundModeDesc: 'Permite rastreo mientras usas otras apps',
+      backgroundModeDesc: 'Permite el rastreo y música mientras usas otras apps. Nota: Para que funcione siempre, desactiva el ahorro de batería para esta app.',
+      backgroundWarning: 'Asegúrate de permitir el acceso a la ubicación "Siempre" en los ajustes de tu dispositivo para un rastreo ininterrumpido.',
       offlineModeTitle: 'Modo Offline',
-      offlineModeDesc: 'Usa solo datos locales y ahorra batería'
+      offlineModeDesc: 'Usa solo datos locales y ahorra batería',
+      motionMusicTitle: 'Música en Movimiento',
+      motionMusicDesc: 'Reproduce música fuera de las zonas',
+      managePlaylist: 'Gestionar Playlist',
+      testAudio: 'Probar Audio'
     },
     en: {
       settings: 'Settings',
@@ -129,9 +138,14 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       keepScreenOnTitle: 'Keep Screen On',
       keepScreenOnDesc: 'Prevents device from locking',
       backgroundModeTitle: 'Background Mode',
-      backgroundModeDesc: 'Allows tracking while using other apps',
+      backgroundModeDesc: 'Allows tracking and music while using other apps. Note: For continuous play, disable battery optimization for this app.',
+      backgroundWarning: 'Make sure to allow "Always" location access in your device settings for uninterrupted tracking.',
       offlineModeTitle: 'Offline Mode',
-      offlineModeDesc: 'Use local data only and save battery'
+      offlineModeDesc: 'Use local data only and save battery',
+      motionMusicTitle: 'Música in Motion',
+      motionMusicDesc: 'Play music outside of zones',
+      managePlaylist: 'Manage Playlist',
+      testAudio: 'Test Audio'
     },
     pt: {
       settings: 'Ajustes',
@@ -186,7 +200,11 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       backgroundModeTitle: 'Modo Segundo Plano',
       backgroundModeDesc: 'Permite rastreamento ao usar outros apps',
       offlineModeTitle: 'Modo Offline',
-      offlineModeDesc: 'Use apenas dados locais e economize bateria'
+      offlineModeDesc: 'Use apenas dados locais e economize bateria',
+      motionMusicTitle: 'Música em Movimento',
+      motionMusicDesc: 'Tocar música fora das zonas',
+      managePlaylist: 'Gerenciar Playlist',
+      testAudio: 'Testar Áudio'
     }
   }[settings.language];
 
@@ -204,7 +222,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
       const newTrack: MusicTrack = {
-        ...(zone.music || { name: file.name, url: '', file }),
+        ...(zone.music || { id: zone.id, name: file.name, url: '', file }),
         file,
         url: URL.createObjectURL(file),
         name: file.name
@@ -218,7 +236,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
       const reader = new FileReader();
       reader.onload = (event) => {
         const newTrack: MusicTrack = {
-          ...(zone.music || { name: 'Track', url: '', file: new File([], 'temp') }),
+          ...(zone.music || { id: zone.id, name: 'Track', url: '', file: new File([], 'temp') }),
           coverUrl: event.target?.result as string
         };
         onUpdateZone({ ...zone, music: newTrack });
@@ -305,6 +323,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               </div>
 
               <SamsungCard icon={MapPin} title={t.locationsTitle} description={t.locationsDesc} onClick={() => setActiveTab('locations')} />
+              <SamsungCard icon={Music} title={t.motionMusicTitle} description={t.motionMusicDesc} onClick={() => setActiveTab('system')} />
               <SamsungCard icon={Palette} title={t.appearance} description={t.uiColorDesc} onClick={() => setActiveTab('appearance')} />
               <SamsungCard icon={Globe} title={t.language} description={t.langDesc} onClick={() => setActiveTab('language')} />
               <SamsungCard icon={Volume2} title={t.volumeTitle} description={t.volumeDesc} onClick={() => setActiveTab('volume')} />
@@ -515,15 +534,18 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                {/* Crossfade Setting Card */}
                <div className={`${settings.uiTheme === 'light' ? 'bg-white' : 'bg-[#282828]'} p-5 rounded-3xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} space-y-4`}>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
-                        <Repeat size={20} />
+                      <div className="flex items-center gap-2">
+                        <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                          <Repeat size={20} />
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <h4 className={`text-sm font-black ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.crossfadeTitle}</h4>
+                            <span className="text-[7px] sm:text-[8px] font-black bg-primary text-black px-1.5 py-0.5 rounded-full uppercase tracking-widest animate-pulse">Nuevo</span>
+                          </div>
+                          <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.crossfadeDesc}</p>
+                        </div>
                       </div>
-                      <div>
-                        <h4 className={`text-sm font-black ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.crossfadeTitle}</h4>
-                        <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.crossfadeDesc}</p>
-                      </div>
-                    </div>
                     <button 
                       onClick={() => onUpdate({ ...settings, enableCrossfade: !settings.enableCrossfade })}
                       className={`w-12 h-6 rounded-full transition-all relative ${settings.enableCrossfade ? 'bg-primary' : (settings.uiTheme === 'light' ? 'bg-black/10' : 'bg-[#181818]')}`}
@@ -643,11 +665,48 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                   <button onClick={() => onUpdate({ ...settings, volume: 0 })} className={`flex-1 py-4 ${settings.uiTheme === 'light' ? 'bg-black/5 text-black/40' : 'bg-[#282828] text-[#B3B3B3]'} rounded-2xl font-black text-xs uppercase`}>{t.mute}</button>
                   <button onClick={() => onUpdate({ ...settings, volume: 1 })} className={`flex-1 py-4 ${settings.uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]'} text-primary rounded-2xl font-black text-xs uppercase`}>MAX</button>
                </div>
+
+               <button 
+                 onClick={onTestAudio}
+                 className={`w-full py-4 ${settings.uiTheme === 'light' ? 'bg-primary/10 text-primary' : 'bg-primary/5 text-primary'} rounded-2xl font-black text-xs uppercase border border-primary/20 active:scale-95 transition-all`}
+               >
+                 {t.testAudio}
+               </button>
             </div>
           )}
 
           {activeTab === 'system' && (
             <div className="space-y-4">
+               {/* Motion Music Card */}
+               <div className={`${settings.uiTheme === 'light' ? 'bg-white' : 'bg-[#282828]'} p-5 rounded-3xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} space-y-4`}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-primary/10 rounded-2xl flex items-center justify-center text-primary">
+                        <Music size={20} />
+                      </div>
+                      <div>
+                        <h4 className={`text-sm font-black ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.motionMusicTitle}</h4>
+                        <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.motionMusicDesc}</p>
+                      </div>
+                    </div>
+                    <button 
+                      onClick={() => onUpdate({ ...settings, enableMotionMusic: !settings.enableMotionMusic })}
+                      className={`w-12 h-6 rounded-full transition-all relative ${settings.enableMotionMusic ? 'bg-primary' : (settings.uiTheme === 'light' ? 'bg-black/10' : 'bg-[#181818]')}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.enableMotionMusic ? 'right-1' : 'left-1'}`} />
+                    </button>
+                  </div>
+
+                  {settings.enableMotionMusic && (
+                    <button 
+                      onClick={onOpenMotionPlaylist}
+                      className="w-full py-3 bg-primary/10 text-primary font-black rounded-xl uppercase tracking-widest text-[10px] border border-primary/20 active:scale-95 transition-all"
+                    >
+                      {t.managePlaylist}
+                    </button>
+                  )}
+               </div>
+
                {/* Wake Lock Card */}
                <div className={`${settings.uiTheme === 'light' ? 'bg-white' : 'bg-[#282828]'} p-5 rounded-3xl border ${settings.uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} space-y-4`}>
                   <div className="flex items-center justify-between">
@@ -678,7 +737,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       </div>
                       <div>
                         <h4 className={`text-sm font-black ${settings.uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.backgroundModeTitle}</h4>
-                        <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.backgroundModeDesc}</p>
+                        <p className={`text-[10px] ${settings.uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold leading-tight`}>{t.backgroundModeDesc}</p>
                       </div>
                     </div>
                     <button 
@@ -688,6 +747,13 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
                       <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.enableBackgroundMode ? 'right-1' : 'left-1'}`} />
                     </button>
                   </div>
+                  {settings.enableBackgroundMode && (
+                    <div className="p-3 bg-primary/5 rounded-xl border border-primary/10">
+                      <p className="text-[9px] text-primary font-bold leading-tight">
+                        {t.backgroundWarning}
+                      </p>
+                    </div>
+                  )}
                </div>
 
                {/* Offline Mode Card */}

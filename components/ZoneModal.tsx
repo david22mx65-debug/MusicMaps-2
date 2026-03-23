@@ -1,8 +1,17 @@
 
 import React, { useState } from 'react';
 import { Coordinates, Zone, MusicTrack, Language } from '../types';
-import { X, Music, Upload, Loader2, Sparkles, Image as ImageIcon } from 'lucide-react';
+import { X, Music, Upload, Loader2, Sparkles, Image as ImageIcon, Circle as CircleIcon, Square as SquareIcon, RectangleHorizontal, Triangle as TriangleIcon, PenTool, Library, Plus } from 'lucide-react';
 import { generateZoneDetails } from '../services/geminiService';
+import { audioStorage, AudioFileData } from '../src/services/audioStorage';
+
+const SHAPES = [
+  { id: 'circle', icon: CircleIcon, label: { es: 'Círculo', en: 'Circle', pt: 'Círculo' } },
+  { id: 'square', icon: SquareIcon, label: { es: 'Cuadrado', en: 'Square', pt: 'Quadrado' } },
+  { id: 'rectangle', icon: RectangleHorizontal, label: { es: 'Rectángulo', en: 'Rectangle', pt: 'Retângulo' } },
+  { id: 'triangle', icon: TriangleIcon, label: { es: 'Triángulo', en: 'Triangle', pt: 'Triângulo' } },
+  { id: 'custom', icon: PenTool, label: { es: 'Personalizado', en: 'Custom', pt: 'Personalizado' } },
+] as const;
 
 interface ZoneModalProps {
   location: Coordinates;
@@ -16,9 +25,20 @@ interface ZoneModalProps {
 const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, language, uiTheme, uiStyle }) => {
   const [name, setName] = useState('');
   const [radius, setRadius] = useState(50);
+  const [shape, setShape] = useState<Zone['shape']>('circle');
   const [musicFile, setMusicFile] = useState<File | null>(null);
   const [coverImage, setCoverImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [library, setLibrary] = useState<AudioFileData[]>([]);
+  const [showLibrary, setShowLibrary] = useState(false);
+
+  React.useEffect(() => {
+    const loadLibrary = async () => {
+      const tracks = await audioStorage.getAllLibraryAudio();
+      setLibrary(tracks);
+    };
+    loadLibrary();
+  }, []);
 
   const t = {
     es: {
@@ -81,6 +101,11 @@ const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, langu
     }
   };
 
+  const selectFromLibrary = (track: AudioFileData) => {
+    setMusicFile(track.file as File);
+    setShowLibrary(false);
+  };
+
   const handleGeminiSuggestion = async () => {
     setIsGenerating(true);
     try {
@@ -96,18 +121,51 @@ const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, langu
   const handleSave = () => {
     if (!name || !musicFile) return;
 
+    const zoneId = Date.now().toString();
     const newZone: Zone = {
-      id: Date.now().toString(),
+      id: zoneId,
       name,
       center: location,
       radius,
+      shape,
       music: {
+        id: zoneId,
         file: musicFile,
         url: URL.createObjectURL(musicFile),
         name: musicFile.name,
         coverUrl: coverImage || undefined
       },
     };
+
+    // Save to library if it's a new file
+    audioStorage.saveToLibrary(zoneId, musicFile, musicFile.name, musicFile.type);
+
+    // Calculate specific geometry based on shape
+    if (shape === 'rectangle') {
+      const latDiff = (radius / 111320) * 0.7;
+      const lngDiff = (radius / (111320 * Math.cos(location.lat * Math.PI / 180))) * 1.3;
+      newZone.bounds = [
+        { lat: location.lat - latDiff, lng: location.lng - lngDiff },
+        { lat: location.lat + latDiff, lng: location.lng + lngDiff }
+      ];
+    } else if (shape === 'triangle') {
+      const latDiff = (radius / 111320);
+      const lngDiff = (radius / (111320 * Math.cos(location.lat * Math.PI / 180)));
+      newZone.points = [
+        { lat: location.lat + latDiff, lng: location.lng },
+        { lat: location.lat - latDiff, lng: location.lng - lngDiff },
+        { lat: location.lat - latDiff, lng: location.lng + lngDiff }
+      ];
+    } else if (shape === 'custom') {
+      const latDiff = (radius / 111320);
+      const lngDiff = (radius / (111320 * Math.cos(location.lat * Math.PI / 180)));
+      newZone.points = [
+        { lat: location.lat + latDiff, lng: location.lng },
+        { lat: location.lat, lng: location.lng + lngDiff },
+        { lat: location.lat - latDiff, lng: location.lng },
+        { lat: location.lat, lng: location.lng - lngDiff }
+      ];
+    }
 
     onSave(newZone);
   };
@@ -147,6 +205,28 @@ const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, langu
             </div>
           </div>
 
+          <div className="space-y-2">
+            <label className={`text-[9px] sm:text-[10px] ${uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-black uppercase tracking-[0.2em]`}>
+              {language === 'es' ? 'Forma de la Zona' : language === 'en' ? 'Zone Shape' : 'Forma da Zona'}
+            </label>
+            <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar no-scrollbar">
+              {SHAPES.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => setShape(s.id as Zone['shape'])}
+                  className={`flex flex-col items-center gap-1 p-3 rounded-2xl border transition-all min-w-[70px] ${
+                    shape === s.id 
+                      ? 'bg-primary/20 border-primary text-primary' 
+                      : `${uiTheme === 'light' ? 'bg-black/5 border-black/5 text-black/40' : 'bg-[#282828] border-white/5 text-[#B3B3B3]'} hover:border-primary/50`
+                  }`}
+                >
+                  <s.icon className="w-5 h-5" />
+                  <span className="text-[8px] font-black uppercase tracking-tighter">{s.label[language]}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="space-y-2 sm:space-y-3">
             <label className={`text-[9px] sm:text-[10px] ${uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-black uppercase tracking-[0.2em] flex justify-between`}>
               <span>{t.rangeLabel}</span>
@@ -164,56 +244,85 @@ const ZoneModal: React.FC<ZoneModalProps> = ({ location, onSave, onCancel, langu
           </div>
 
           <div className={`${uiStyle === 'pixel' ? (uiTheme === 'light' ? 'bg-primary/10' : 'bg-primary/5') : uiStyle === 'liquid-glass' ? (uiTheme === 'light' ? 'bg-white/20' : 'bg-white/5') : (uiTheme === 'light' ? 'bg-black/5' : 'bg-[#181818]')} p-4 sm:p-6 rounded-3xl border ${uiTheme === 'light' ? 'border-black/5' : 'border-white/5'} space-y-3 sm:space-y-4`}>
-            <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 sm:w-10 sm:h-10 ${uiStyle === 'pixel' ? 'bg-primary/30' : 'bg-primary'} rounded-xl flex items-center justify-center shrink-0`}>
-                    <Music className={`${uiStyle === 'pixel' ? 'text-primary' : 'text-black'} w-4 h-4 sm:w-5 sm:h-5`} />
-                </div>
-                <div>
-                    <h4 className={`text-xs sm:text-sm font-black ${uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.audioTitle}</h4>
-                    <p className={`text-[9px] sm:text-[10px] ${uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.audioDesc}</p>
-                </div>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-2 sm:gap-3">
-                <div className="relative group">
-                    <input 
-                      type="file" 
-                      accept="audio/*"
-                      onChange={handleFileChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div className={`h-full flex flex-col items-center gap-2 p-3 sm:p-4 ${uiStyle === 'pixel' ? 'bg-primary/10' : uiStyle === 'liquid-glass' ? 'bg-white/10' : (uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]')} rounded-2xl border border-transparent group-hover:border-primary transition-all text-center justify-center min-h-[80px] sm:min-h-[100px]`}>
-                      <Upload className={`w-4 h-4 sm:w-5 sm:h-5 ${uiTheme === 'light' ? 'text-black/20' : 'text-[#B3B3B3]'}`} />
-                      <div className={`text-[9px] sm:text-[10px] font-bold ${uiTheme === 'light' ? 'text-black' : 'text-white'} line-clamp-2`}>
-                        {musicFile ? musicFile.name : t.uploadAudio}
-                      </div>
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                    <div className={`w-8 h-8 sm:w-10 sm:h-10 ${uiStyle === 'pixel' ? 'bg-primary/30' : 'bg-primary'} rounded-xl flex items-center justify-center shrink-0`}>
+                        <Music className={`${uiStyle === 'pixel' ? 'text-primary' : 'text-black'} w-4 h-4 sm:w-5 sm:h-5`} />
+                    </div>
+                    <div>
+                        <h4 className={`text-xs sm:text-sm font-black ${uiTheme === 'light' ? 'text-black' : 'text-white'} uppercase tracking-tight`}>{t.audioTitle}</h4>
+                        <p className={`text-[9px] sm:text-[10px] ${uiTheme === 'light' ? 'text-black/40' : 'text-[#B3B3B3]'} font-bold`}>{t.audioDesc}</p>
                     </div>
                 </div>
+                <button 
+                  onClick={() => setShowLibrary(!showLibrary)}
+                  className={`p-2 rounded-xl ${uiTheme === 'light' ? 'bg-black/5 text-black' : 'bg-white/5 text-white'} hover:text-primary transition-colors`}
+                  title="Biblioteca"
+                >
+                  <Library size={18} />
+                </button>
+            </div>
 
-                <div className="relative group">
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      onChange={handleCoverChange}
-                      className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                    />
-                    <div className={`h-full flex flex-col items-center gap-2 p-3 sm:p-4 ${uiStyle === 'pixel' ? 'bg-primary/10' : uiStyle === 'liquid-glass' ? 'bg-white/10' : (uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]')} rounded-2xl border border-transparent group-hover:border-primary transition-all text-center justify-center relative overflow-hidden min-h-[80px] sm:min-h-[100px]`}>
-                      {coverImage ? (
-                        <img src={coverImage} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="Cover preview" />
-                      ) : (
-                        <ImageIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${uiTheme === 'light' ? 'text-black/20' : 'text-[#B3B3B3]'}`} />
-                      )}
-                      <div className={`text-[9px] sm:text-[10px] font-bold ${uiTheme === 'light' ? 'text-black' : 'text-white'} relative z-20`}>
-                        {coverImage ? t.changeCover : (
-                          <div className="flex flex-col">
-                            <span>{t.uploadCover}</span>
-                            <span className="opacity-60 text-[7px] sm:text-[8px]">{t.optional}</span>
-                          </div>
-                        )}
+            {showLibrary ? (
+              <div className={`max-h-[200px] overflow-y-auto custom-scrollbar space-y-2 p-2 rounded-2xl ${uiTheme === 'light' ? 'bg-black/5' : 'bg-black/20'}`}>
+                {library.length === 0 ? (
+                  <p className="text-center py-4 text-[10px] opacity-40">Biblioteca vacía</p>
+                ) : (
+                  library.map((track) => (
+                    <button
+                      key={track.id}
+                      onClick={() => selectFromLibrary(track)}
+                      className={`w-full flex items-center gap-3 p-2 rounded-xl ${uiTheme === 'light' ? 'hover:bg-white' : 'hover:bg-white/5'} transition-all text-left group`}
+                    >
+                      <Music size={14} className="text-primary" />
+                      <span className={`text-[10px] font-bold truncate flex-1 ${uiTheme === 'light' ? 'text-black' : 'text-white'}`}>{track.name}</span>
+                      <Plus size={14} className="opacity-0 group-hover:opacity-100 text-primary" />
+                    </button>
+                  ))
+                )}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
+                  <div className="relative group">
+                      <input 
+                        type="file" 
+                        accept="audio/*"
+                        onChange={handleFileChange}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <div className={`h-full flex flex-col items-center gap-2 p-3 sm:p-4 ${uiStyle === 'pixel' ? 'bg-primary/10' : uiStyle === 'liquid-glass' ? 'bg-white/10' : (uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]')} rounded-2xl border border-transparent group-hover:border-primary transition-all text-center justify-center min-h-[80px] sm:min-h-[100px]`}>
+                        <Upload className={`w-4 h-4 sm:w-5 sm:h-5 ${uiTheme === 'light' ? 'text-black/20' : 'text-[#B3B3B3]'}`} />
+                        <div className={`text-[9px] sm:text-[10px] font-bold ${uiTheme === 'light' ? 'text-black' : 'text-white'} line-clamp-2`}>
+                          {musicFile ? musicFile.name : t.uploadAudio}
+                        </div>
                       </div>
-                    </div>
-                </div>
-            </div>
+                  </div>
+
+                  <div className="relative group">
+                      <input 
+                        type="file" 
+                        accept="image/*"
+                        onChange={handleCoverChange}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                      />
+                      <div className={`h-full flex flex-col items-center gap-2 p-3 sm:p-4 ${uiStyle === 'pixel' ? 'bg-primary/10' : uiStyle === 'liquid-glass' ? 'bg-white/10' : (uiTheme === 'light' ? 'bg-black/5' : 'bg-[#282828]')} rounded-2xl border border-transparent group-hover:border-primary transition-all text-center justify-center relative overflow-hidden min-h-[80px] sm:min-h-[100px]`}>
+                        {coverImage ? (
+                          <img src={coverImage} className="absolute inset-0 w-full h-full object-cover opacity-40" alt="Cover preview" />
+                        ) : (
+                          <ImageIcon className={`w-4 h-4 sm:w-5 sm:h-5 ${uiTheme === 'light' ? 'text-black/20' : 'text-[#B3B3B3]'}`} />
+                        )}
+                        <div className={`text-[9px] sm:text-[10px] font-bold ${uiTheme === 'light' ? 'text-black' : 'text-white'} relative z-20`}>
+                          {coverImage ? t.changeCover : (
+                            <div className="flex flex-col">
+                              <span>{t.uploadCover}</span>
+                              <span className="opacity-60 text-[7px] sm:text-[8px]">{t.optional}</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                  </div>
+              </div>
+            )}
           </div>
         </div>
 
