@@ -31,13 +31,13 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
     es: {
       title: 'Música en Movimiento',
       desc: 'Esta música sonará mientras te desplazas fuera de las zonas.',
-      limit: 'Límite: 100 canciones (MP3/FLAC)',
+      limit: 'Límite: 10,000 canciones (MP3/FLAC)',
       upload: 'Añadir Canción',
       uploadFolder: 'Importar Carpeta',
       library: 'Biblioteca',
       empty: 'No hay canciones en tu playlist de movimiento.',
       delete: 'Eliminar',
-      errorLimit: 'Has alcanzado el límite de 100 canciones.',
+      errorLimit: 'Has alcanzado el límite de 10,000 canciones.',
       errorFormat: 'Solo se permiten archivos MP3 o FLAC.',
       addFromLibrary: 'Añadir desde Biblioteca',
       shuffle: 'Aleatorio',
@@ -49,13 +49,13 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
     en: {
       title: 'Music in Motion',
       desc: 'This music will play while you move outside of zones.',
-      limit: 'Limit: 100 songs (MP3/FLAC)',
+      limit: 'Limit: 10,000 songs (MP3/FLAC)',
       upload: 'Add Song',
       uploadFolder: 'Import Folder',
       library: 'Library',
       empty: 'No songs in your motion playlist.',
       delete: 'Delete',
-      errorLimit: 'You have reached the limit of 100 songs.',
+      errorLimit: 'You have reached the limit of 10,000 songs.',
       errorFormat: 'Only MP3 or FLAC files are allowed.',
       addFromLibrary: 'Add from Library',
       shuffle: 'Shuffle',
@@ -67,13 +67,13 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
     pt: {
       title: 'Música em Movimento',
       desc: 'Esta música tocará enquanto você se desloca fora das zonas.',
-      limit: 'Limite: 100 canções (MP3/FLAC)',
+      limit: 'Limite: 10,000 canções (MP3/FLAC)',
       upload: 'Adicionar Canção',
       uploadFolder: 'Importar Pasta',
       library: 'Biblioteca',
       empty: 'Não há canções na sua playlist de movimento.',
       delete: 'Excluir',
-      errorLimit: 'Você atingiu o limite de 100 canções.',
+      errorLimit: 'Você atingiu o limite de 10,000 canções.',
       errorFormat: 'Apenas arquivos MP3 ou FLAC são permitidos.',
       addFromLibrary: 'Adicionar da Biblioteca',
       shuffle: 'Aleatório',
@@ -115,7 +115,7 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
   }, []);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (playlist.length >= 100) {
+    if (playlist.length >= 10000) {
       alert(t.errorLimit);
       return;
     }
@@ -130,7 +130,7 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
 
     const newTracks: MusicTrack[] = [];
     for (const file of validFiles) {
-      if (playlist.length + newTracks.length >= 100) break;
+      if (playlist.length + newTracks.length >= 10000) break;
       
       const id = `motion_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       
@@ -156,7 +156,7 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
   };
 
   const handleAddFromLibrary = async (track: AudioFileData) => {
-    if (playlist.length >= 100) {
+    if (playlist.length >= 10000) {
       alert(t.errorLimit);
       return;
     }
@@ -328,7 +328,7 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
                 accept=".mp3,.flac,audio/mpeg,audio/flac"
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                disabled={playlist.length >= 25}
+                disabled={playlist.length >= 10000}
               />
               <button 
                 className={`w-full py-3 rounded-xl border border-dashed ${uiTheme === 'light' ? 'border-black/10 text-black/40' : 'border-white/10 text-white/40'} flex items-center justify-center gap-2 font-bold text-[10px] hover:border-primary hover:text-primary transition-all`}
@@ -344,7 +344,7 @@ const MotionPlaylistModal: React.FC<MotionPlaylistModalProps> = ({
                 {...({ webkitdirectory: "", directory: "" } as any)}
                 onChange={handleFileUpload}
                 className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-                disabled={playlist.length >= 100}
+                disabled={playlist.length >= 10000}
               />
               <button 
                 className={`w-full py-3 rounded-xl border border-dashed ${uiTheme === 'light' ? 'border-black/10 text-black/40' : 'border-white/10 text-white/40'} flex items-center justify-center gap-2 font-bold text-[10px] hover:border-primary hover:text-primary transition-all`}
